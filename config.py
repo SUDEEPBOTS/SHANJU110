@@ -13,7 +13,7 @@ API_HASH = getenv("API_HASH")
 # Get your token from @BotFather on Telegram.
 BOT_TOKEN = getenv("BOT_TOKEN")
 
-BOT_USERNAME = "@Music_promaxbot"
+BOT_USERNAME = "@ANIYA_MUSIC_BOT"
 
 # Get your mongo url from cloud.mongodb.com
 MONGO_DB_URI = getenv("MONGO_DB_URI", None)
@@ -41,8 +41,8 @@ GIT_TOKEN = getenv(
     "GIT_TOKEN", ""
 )  # Fill this variable if your upstream repository is private
 
-SUPPORT_CHANNEL = getenv("SUPPORT_CHAT", "https://t.me/hartsteeler")
-SUPPORT_GROUP = getenv("SUPPORT_GROUP", "https://t.me/GOJO_SUPPORT_GROUP_II")
+SUPPORT_CHANNEL = getenv("SUPPORT_CHAT", "https://t.me/ll_MY_CORE_ll")
+SUPPORT_GROUP = getenv("SUPPORT_GROUP", "https://t.me/+rQqhGhdP7tRkMmM1")
 
 # Set this to True if you want the assistant to automatically leave chats after an interval
 AUTO_LEAVING_ASSISTANT = bool(getenv("AUTO_LEAVING_ASSISTANT", False))
@@ -83,10 +83,10 @@ confirmer = {}
 
 
 START_IMG_URL = getenv(
-    "START_IMG_URL", "https://files.catbox.moe/qku62r.jpg"
+    "START_IMG_URL", "https://files.catbox.moe/yezu0r.jpg"
 )
 PING_IMG_URL = getenv(
-    "PING_IMG_URL", "https://files.catbox.moe/tc0v57.jpg"
+    "PING_IMG_URL", "https://files.catbox.moe/yezu0r.jpg"
 )
 PLAYLIST_IMG_URL = "https://files.catbox.moe/6tled7.jpg"
 STATS_IMG_URL = "https://files.catbox.moe/3j0fgp.jpg"
@@ -119,6 +119,7 @@ if SUPPORT_GROUP:
         raise SystemExit(
             "[ERROR] - Your SUPPORT_GROUP url is wrong. Please ensure that it starts with https://"
         )
+
 
 
 
