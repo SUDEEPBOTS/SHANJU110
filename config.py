@@ -15,6 +15,13 @@ BOT_TOKEN = getenv("BOT_TOKEN")
 
 BOT_USERNAME = "@ANIYA_MUSIC_BOT"
 
+# ... (Tere purane configs jaise API_ID, BOT_TOKEN yahan honge) ...
+
+# 🎵 SUDEEP MUSIC API CONFIG
+MUSIC_API_URL = os.getenv("MUSIC_API_URL", "https://musicapifast-1.onrender.com")
+MUSIC_API_KEY = os.getenv("MUSIC_API_KEY", "YUKI-XXXXXXXX") # <--- Yahan apni key daalna
+
+
 # Get your mongo url from cloud.mongodb.com
 MONGO_DB_URI = getenv("MONGO_DB_URI", None)
 
@@ -119,6 +126,7 @@ if SUPPORT_GROUP:
         raise SystemExit(
             "[ERROR] - Your SUPPORT_GROUP url is wrong. Please ensure that it starts with https://"
         )
+
 
 
 
