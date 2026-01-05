@@ -366,7 +366,7 @@ async def play_commnd(
             
             # Step C: StreamType 'telegram' rakhenge taaki Cookies ka error na aaye
             # Lekin 'vidid' pass kiya hai, toh bot Thumbnail zaroor banayega.
-            streamtype = "telegram" 
+            streamtype = "youtube" 
             
         else:
             # 🐢 API Fail -> Fallback to YouTube
@@ -711,5 +711,6 @@ async def slider_queries(client, CallbackQuery, _):
         return await CallbackQuery.edit_message_media(
             media=med, reply_markup=InlineKeyboardMarkup(buttons)
         )
+
 
 
