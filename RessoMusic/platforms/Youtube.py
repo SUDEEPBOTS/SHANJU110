@@ -164,30 +164,27 @@ class YouTubeAPI:
         return result
 
     # 🔥 TRACK FUNCTION
-    async def track(self, link: str, videoid: Union[bool, str] = None):
-        
-        # 1. API Call (Yehi Main Hai)
-        if MUSIC_API_URL and not videoid:
-    api_data = await self.get_api_video(link)
-    if api_data:
-        # 🔽 API ne jo catbox link diya
-        file_url = api_data["link"]
+async def track(self, link: str, videoid: Union[bool, str] = None):
 
-        # 🔽 LOCAL DOWNLOAD using existing download()
-        file_path, ok = await self.download(file_url, None)
+    # 1. API Call (Yehi Main Hai)
+    if MUSIC_API_URL and not videoid:
+        api_data = await self.get_api_video(link)
+        if api_data:
+            file_url = api_data["link"]
 
-        if not ok or not file_path:
-            print("❌ API file download failed")
-            return None, None
+            file_path, ok = await self.download(file_url, None)
+            if not ok or not file_path:
+                print("❌ API file download failed")
+                return None, None
 
-        return {
-            "title": api_data["title"],
-            "link": file_url,          # original url
-            "path": file_path,         # 🔥 LOCAL FILE PATH (IMPORTANT)
-            "vidid": api_data["id"],
-            "duration_min": api_data["duration"],
-            "thumb": f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg",
-        }, api_data["id"]
+            return {
+                "title": api_data["title"],
+                "link": file_url,
+                "path": file_path,   # ✅ LOCAL FILE PATH
+                "vidid": api_data["id"],
+                "duration_min": api_data["duration"],
+                "thumb": f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg",
+            }, api_data["id"]
         # 2. Metadata Fallback (Sirf Naam Pata karne ke liye)
         # Download nahi karega, bas agar API fail hui to user ko error dikhane ke liye naam layega
         if videoid:
