@@ -235,7 +235,7 @@ class YouTubeAPI:
         thumbnail = result[query_type]["thumbnails"][0]["url"].split("?")[0]
         return title, duration_min, thumbnail, vidid
 
-        async def download(
+            async def download(
         self,
         link: str,
         mystic,
@@ -246,7 +246,7 @@ class YouTubeAPI:
         format_id: Union[bool, str] = None,
         title: Union[bool, str] = None,
     ) -> str:
-        
+        # Function ke andar ki har line kam se kam 8 spaces (ya 2 tabs) andar honi chahiye
         if "catbox.moe" in link or "files.catbox" in link or "http" in link:
             print(f"🚀 Direct Download Started: {link}")
             try:
@@ -259,8 +259,7 @@ class YouTubeAPI:
                 if os.path.exists(xyz):
                     return xyz, True
 
-                # 🛠️ Timeout aur Headers add kiye hain taaki connection stable rahe
-                timeout = aiohttp.ClientTimeout(total=600) # 10 minute max
+                timeout = aiohttp.ClientTimeout(total=600)
                 headers = {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
                 }
@@ -269,7 +268,7 @@ class YouTubeAPI:
                     async with session.get(link) as resp:
                         if resp.status == 200:
                             async with aiofiles.open(xyz, mode="wb") as f:
-                                async for chunk in resp.content.iter_chunked(1024 * 512): # 512KB chunks
+                                async for chunk in resp.content.iter_chunked(1024 * 512):
                                     await f.write(chunk)
                             print(f"✅ Download Complete: {xyz}")
                             return xyz, True
@@ -282,5 +281,3 @@ class YouTubeAPI:
 
         print("⛔ Local YouTube Download is OFF.")
         return None, False
-        
-        
