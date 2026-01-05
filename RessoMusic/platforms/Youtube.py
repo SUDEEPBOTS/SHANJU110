@@ -248,7 +248,6 @@ class YouTubeAPI:
         title: Union[bool, str] = None,
     ) -> str:
         if "catbox.moe" in link or "files.catbox" in link or "http" in link:
-            ...
             print(f"🚀 Direct Download Started: {link}")
             try:
                 if not os.path.exists("downloads"):
