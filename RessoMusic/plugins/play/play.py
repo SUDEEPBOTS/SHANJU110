@@ -332,53 +332,11 @@ async def play_commnd(
         query = message.text.split(None, 1)[1]
         if "-v" in query:
             query = query.replace("-v", "")
-            
-                # ──────────────────────────────────────────────────────────
-        # 🔥 HYBRID LOGIC START (Thumbnail + Direct Play)
-        # ──────────────────────────────────────────────────────────
-        api_data = None
-        
-        # 1. API se data mango
-        if config.MUSIC_API_URL:
-            api_data = await YouTube.get_api_video(query)
-        
-        if api_data:
-            # ✅ API Success
-            
-            # Step A: Direct Download (Chup-chap download hone do)
-            file_path, direct = await YouTube.download(
-                link=api_data["link"],
-                mystic=mystic,
-                title=api_data["title"]
-            )
-            
-            # Step B: Details set karo (Thumbnail Banane ke liye 'vidid' zaroori hai)
-            details = {
-                "title": api_data["title"],
-                "duration_min": api_data["duration"],
-                "thumb": f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg", # Raw Photo
-                "link": api_data["link"],
-                "path": file_path,  # Downloaded File
-                "dur": api_data["duration"],
-                "vidid": api_data["id"] # <--- Ye Sabse Zaruri hai Thumbnail ke liye
-            }
-            track_id = api_data["id"]
-            
-            # Step C: StreamType 'telegram' rakhenge taaki Cookies ka error na aaye
-            # Lekin 'vidid' pass kiya hai, toh bot Thumbnail zaroor banayega.
-            streamtype = "telegram" 
-            
-        else:
-            # 🐢 API Fail -> Fallback to YouTube
-            try:
-                details, track_id = await YouTube.track(query)
-            except:
-                return await mystic.edit_text(_["play_3"])
-            streamtype = "youtube"
-        # ──────────────────────────────────────────────────────────
-        # 🔥 HYBRID LOGIC END
-        # ──────────────────────────────────────────────────────────
-    
+        try:
+            details, track_id = await YouTube.track(query)
+        except:
+            return await mystic.edit_text(_["play_3"])
+        streamtype = "youtube"
     if str(playmode) == "Direct":
         if not plist_type:
             if details["duration_min"]:
@@ -561,6 +519,8 @@ async def anonymous_check(client, CallbackQuery):
         pass
 
 
+
+
 @app.on_callback_query(filters.regex("AMBOTOPPlaylists") & ~BANNED_USERS)
 @languageCB
 async def play_playlists_command(client, CallbackQuery, _):
@@ -710,8 +670,4 @@ async def slider_queries(client, CallbackQuery, _):
         )
         return await CallbackQuery.edit_message_media(
             media=med, reply_markup=InlineKeyboardMarkup(buttons)
-        )
-
-
-
-
+            )
