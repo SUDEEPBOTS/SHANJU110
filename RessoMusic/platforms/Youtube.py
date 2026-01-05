@@ -38,26 +38,40 @@ class YouTubeAPI:
         self.listbase = "https://youtube.com/playlist?list="
         self.reg = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
-    # 🔥 NEW: API HELPER FUNCTION
+    # 🔥 MODIFIED: API DEBUG FUNCTION
     async def get_api_video(self, query: str):
+        # 1. Config Check
         if not MUSIC_API_URL:
+            print("❌ DEBUG: MUSIC_API_URL is missing in config!")
             return None
             
-        # URL formatting fix
         base_url = MUSIC_API_URL.rstrip("/")
         url = f"{base_url}/getvideo"
         params = {"query": query, "key": MUSIC_API_KEY}
         
+        print(f"📡 DEBUG: Requesting -> {url} | Query: {query}")
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, params=params, timeout=30) as resp:
+                    # 2. Status Check
+                    print(f"📡 DEBUG: HTTP Status Code: {resp.status}")
+                    
                     if resp.status == 200:
                         data = await resp.json()
-                        # Check if API returned success
+                        print(f"📦 DEBUG: API Data Received: {data}") # Ye dikhayega API ne kya bheja
+                        
                         if data.get("status") == 200:
+                            print("✅ DEBUG: API Success!")
                             return data
+                        else:
+                            print(f"⚠️ DEBUG: API Internal Status not 200: {data.get('status')}")
+                    else:
+                        text = await resp.text()
+                        print(f"❌ DEBUG: API Failed. Body: {text}")
+                        
         except Exception as e:
-            print(f"⚠️ Sudeep API Error: {e}")
+            print(f"🔥 DEBUG: API Connection Crash: {e}")
         return None
 
     async def exists(self, link: str, videoid: Union[bool, str] = None):
@@ -148,12 +162,14 @@ class YouTubeAPI:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
+            
+        # Cookies Check (Crash Prevention)
+        cmd_list = ["yt-dlp", "-g", "-f", "best[height<=?720][width<=?1280]", f"{link}"]
+        if os.path.exists("cookies.txt"):
+            cmd_list.extend(["--cookies", "cookies.txt"])
+
         proc = await asyncio.create_subprocess_exec(
-            "yt-dlp",
-            "-g",
-            "-f",
-            "best[height<=?720][width<=?1280]",
-            f"{link}",
+            *cmd_list,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -168,8 +184,10 @@ class YouTubeAPI:
             link = self.listbase + link
         if "&" in link:
             link = link.split("&")[0]
+            
+        cookie_arg = "--cookies cookies.txt" if os.path.exists("cookies.txt") else ""
         playlist = await shell_cmd(
-            f"yt-dlp -i --get-id --flat-playlist --playlist-end {limit} --skip-download {link}"
+            f"yt-dlp -i --get-id --flat-playlist --playlist-end {limit} --skip-download {cookie_arg} {link}"
         )
         try:
             result = playlist.split("\n")
@@ -180,24 +198,29 @@ class YouTubeAPI:
             result = []
         return result
 
-    # 🔥 MODIFIED: TRACK FUNCTION (Hybrid Logic)
+    # 🔥 MODIFIED: TRACK FUNCTION with Debugging
     async def track(self, link: str, videoid: Union[bool, str] = None):
         
-        # 1. Try Sudeep API First (Agar Configured hai)
+        # 1. Try Sudeep API First
         if MUSIC_API_URL and not videoid:
+            print(f"🔎 DEBUG: Starting API Search for: {link}")
             api_data = await self.get_api_video(link)
+            
             if api_data:
-                # API Success: Return API details
+                print("✅ DEBUG: Using API Data for Track")
                 track_details = {
                     "title": api_data["title"],
-                    "link": api_data["link"], # Ye Direct Catbox Link hai
+                    "link": api_data["link"],
                     "vidid": api_data["id"],
                     "duration_min": api_data["duration"],
                     "thumb": f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg",
                 }
                 return track_details, api_data["id"]
+            else:
+                print("❌ DEBUG: API returned None, switching to Local YouTube")
 
-        # 2. Fallback to Local YouTube Search (Purana Logic)
+        # 2. Fallback to Local YouTube Search
+        print("🐢 DEBUG: Executing Local VideosSearch...")
         if videoid:
             link = self.base + link
         if "&" in link:
@@ -223,8 +246,13 @@ class YouTubeAPI:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        ytdl_opts = {"quiet": True}
-        ydl = yt_dlp.YoutubeDL(ytdl_opts)
+        
+        # Cookies Safe Options
+        ydl_opts = {"quiet": True}
+        if os.path.exists("cookies.txt"):
+            ydl_opts["cookiefile"] = "cookies.txt"
+
+        ydl = yt_dlp.YoutubeDL(ydl_opts)
         with ydl:
             formats_available = []
             r = ydl.extract_info(link, download=False)
@@ -272,7 +300,7 @@ class YouTubeAPI:
         thumbnail = result[query_type]["thumbnails"][0]["url"].split("?")[0]
         return title, duration_min, thumbnail, vidid
 
-    # 🔥 MODIFIED: DOWNLOAD FUNCTION (Direct Download Support)
+    # 🔥 MODIFIED: DOWNLOAD FUNCTION
     async def download(
         self,
         link: str,
@@ -287,46 +315,52 @@ class YouTubeAPI:
         
         # 1. Catbox / Direct Link Check
         if "catbox.moe" in link or "files.catbox" in link:
+            print(f"🚀 DEBUG: Attempting Direct Download: {link}")
             try:
-                # Folder check
                 if not os.path.exists("downloads"):
                     os.makedirs("downloads")
                 
                 filename = link.split("/")[-1]
                 xyz = os.path.join("downloads", filename)
 
-                # Agar pehle se hai to wahi return karo
                 if os.path.exists(xyz):
+                    print("✅ DEBUG: File already exists in cache")
                     return xyz, True
 
-                # Direct Async Download (Fast)
                 async with aiohttp.ClientSession() as session:
                     async with session.get(link) as resp:
                         if resp.status == 200:
                             async with aiofiles.open(xyz, mode="wb") as f:
                                 async for chunk in resp.content.iter_chunked(1024 * 1024):
                                     await f.write(chunk)
+                            print("✅ DEBUG: Direct Download Complete")
                             return xyz, True
+                        else:
+                            print(f"❌ DEBUG: Direct Download HTTP Error: {resp.status}")
             except Exception as e:
-                print(f"Catbox DL Failed: {e}")
-                # Fallback to normal flow if this fails (though unlikely)
+                print(f"🔥 DEBUG: Direct Download Crash: {e}")
 
-        # 2. Normal YouTube DL Logic (Purana Code)
+        # 2. Normal YouTube DL Logic (Cookie Safe)
         if videoid:
             link = self.base + link
         loop = asyncio.get_running_loop()
 
-        def audio_dl():
-            ydl_optssx = {
-                "format": "bestaudio/best",
-                "outtmpl": "downloads/%(id)s.%(ext)s",
+        # Helper to get options safely
+        def get_opts(tmpl, fmt):
+            opts = {
+                "format": fmt,
+                "outtmpl": tmpl,
                 "geo_bypass": True,
                 "nocheckcertificate": True,
                 "quiet": True,
-                "cookiefile": "cookies.txt",
                 "no_warnings": True,
             }
-            x = yt_dlp.YoutubeDL(ydl_optssx)
+            if os.path.exists("cookies.txt"):
+                opts["cookiefile"] = "cookies.txt"
+            return opts
+
+        def audio_dl():
+            x = yt_dlp.YoutubeDL(get_opts("downloads/%(id)s.%(ext)s", "bestaudio/best"))
             info = x.extract_info(link, False)
             xyz = os.path.join("downloads", f"{info['id']}.{info['ext']}")
             if os.path.exists(xyz):
@@ -335,16 +369,7 @@ class YouTubeAPI:
             return xyz
 
         def video_dl():
-            ydl_optssx = {
-                "format": "(bestvideo[height<=?720][width<=?1280][ext=mp4])+(bestaudio[ext=m4a])",
-                "outtmpl": "downloads/%(id)s.%(ext)s",
-                "geo_bypass": True,
-                "nocheckcertificate": True,
-                "quiet": True,
-                "cookiefile": "cookies.txt",
-                "no_warnings": True,
-            }
-            x = yt_dlp.YoutubeDL(ydl_optssx)
+            x = yt_dlp.YoutubeDL(get_opts("downloads/%(id)s.%(ext)s", "(bestvideo[height<=?720][width<=?1280][ext=mp4])+(bestaudio[ext=m4a])"))
             info = x.extract_info(link, False)
             xyz = os.path.join("downloads", f"{info['id']}.{info['ext']}")
             if os.path.exists(xyz):
@@ -353,42 +378,23 @@ class YouTubeAPI:
             return xyz
 
         def song_video_dl():
-            formats = f"{format_id}+140"
-            fpath = f"downloads/{title}"
-            ydl_optssx = {
-                "format": formats,
-                "outtmpl": fpath,
-                "geo_bypass": True,
-                "nocheckcertificate": True,
-                "quiet": True,
-                "cookiefile": "cookies.txt",
-                "no_warnings": True,
-                "prefer_ffmpeg": True,
-                "merge_output_format": "mp4",
-            }
-            x = yt_dlp.YoutubeDL(ydl_optssx)
+            opts = get_opts(f"downloads/{title}", f"{format_id}+140")
+            opts["prefer_ffmpeg"] = True
+            opts["merge_output_format"] = "mp4"
+            x = yt_dlp.YoutubeDL(opts)
             x.download([link])
 
         def song_audio_dl():
-            fpath = f"downloads/{title}.%(ext)s"
-            ydl_optssx = {
-                "format": format_id,
-                "outtmpl": fpath,
-                "geo_bypass": True,
-                "nocheckcertificate": True,
-                "quiet": True,
-                "cookiefile": "cookies.txt",
-                "no_warnings": True,
-                "prefer_ffmpeg": True,
-                "postprocessors": [
-                    {
-                        "key": "FFmpegExtractAudio",
-                        "preferredcodec": "mp3",
-                        "preferredquality": "192",
-                    }
-                ],
-            }
-            x = yt_dlp.YoutubeDL(ydl_optssx)
+            opts = get_opts(f"downloads/{title}.%(ext)s", format_id)
+            opts["prefer_ffmpeg"] = True
+            opts["postprocessors"] = [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                }
+            ]
+            x = yt_dlp.YoutubeDL(opts)
             x.download([link])
 
         if songvideo:
@@ -404,12 +410,11 @@ class YouTubeAPI:
                 direct = True
                 downloaded_file = await loop.run_in_executor(None, video_dl)
             else:
+                cmd_list = ["yt-dlp", "-g", "-f", "best[height<=?720][width<=?1280]", f"{link}"]
+                if os.path.exists("cookies.txt"):
+                    cmd_list.extend(["--cookies", "cookies.txt"])
                 proc = await asyncio.create_subprocess_exec(
-                    "yt-dlp",
-                    "-g",
-                    "-f",
-                    "best[height<=?720][width<=?1280]",
-                    f"{link}",
+                    *cmd_list,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -423,4 +428,4 @@ class YouTubeAPI:
             direct = True
             downloaded_file = await loop.run_in_executor(None, audio_dl)
         return downloaded_file, direct
-                
+            
