@@ -333,44 +333,43 @@ async def play_commnd(
         if "-v" in query:
             query = query.replace("-v", "")
             
-        # ──────────────────────────────────────────────────────────
-        # 🔥 HYBRID LOGIC START (Final Cookie Fix)
+                # ──────────────────────────────────────────────────────────
+        # 🔥 HYBRID LOGIC START (Thumbnail + Direct Play)
         # ──────────────────────────────────────────────────────────
         api_data = None
         
-        # 1. API se pucho
+        # 1. API se data mango
         if config.MUSIC_API_URL:
             api_data = await YouTube.get_api_video(query)
         
         if api_data:
             # ✅ API Success
-            await mystic.edit_text("⬇️ **Downloading via Fast API...**")
             
-            # Step A: Download File Locally (Bypass yt-dlp)
-            # Humara modified YouTube.py Catbox link ko direct download karega
+            # Step A: Direct Download (Chup-chap download hone do)
             file_path, direct = await YouTube.download(
-                api_data["link"],
-                mystic,
+                link=api_data["link"],
+                mystic=mystic,
                 title=api_data["title"]
             )
             
-            # Step B: Create Details for Stream
+            # Step B: Details set karo (Thumbnail Banane ke liye 'vidid' zaroori hai)
             details = {
                 "title": api_data["title"],
                 "duration_min": api_data["duration"],
-                "thumb": f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg",
+                "thumb": f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg", # Raw Photo
                 "link": api_data["link"],
-                "path": file_path, # Local File Path de diya
-                "dur": api_data["duration"]
+                "path": file_path,  # Downloaded File
+                "dur": api_data["duration"],
+                "vidid": api_data["id"] # <--- Ye Sabse Zaruri hai Thumbnail ke liye
             }
             track_id = api_data["id"]
             
-            # Step C: Set StreamType to TELEGRAM
-            # Ye trick hai: "telegram" bolenge toh bot yt-dlp use nahi karega
+            # Step C: StreamType 'telegram' rakhenge taaki Cookies ka error na aaye
+            # Lekin 'vidid' pass kiya hai, toh bot Thumbnail zaroor banayega.
             streamtype = "telegram" 
             
         else:
-            # 🐢 API Fail -> Local Fallback
+            # 🐢 API Fail -> Fallback to YouTube
             try:
                 details, track_id = await YouTube.track(query)
             except:
@@ -712,4 +711,5 @@ async def slider_queries(client, CallbackQuery, _):
         return await CallbackQuery.edit_message_media(
             media=med, reply_markup=InlineKeyboardMarkup(buttons)
         )
+
 
