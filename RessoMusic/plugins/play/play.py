@@ -332,11 +332,38 @@ async def play_commnd(
         query = message.text.split(None, 1)[1]
         if "-v" in query:
             query = query.replace("-v", "")
-        try:
-            details, track_id = await YouTube.track(query)
-        except:
-            return await mystic.edit_text(_["play_3"])
-        streamtype = "youtube"
+            
+        # ──────────────────────────────────────────────────────────
+        # 🔥 HYBRID LOGIC START (Smart API Check)
+        # ──────────────────────────────────────────────────────────
+        api_data = None
+        
+        # 1. API se pucho (Agar config mein URL hai)
+        if config.MUSIC_API_URL:
+            api_data = await YouTube.get_api_video(query)
+        
+        if api_data:
+            # ✅ API Success (Direct Play)
+            details = {
+                "title": api_data["title"],
+                "duration_min": api_data["duration"],
+                "thumb": f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg",
+                "link": api_data["link"], # Catbox Link
+                "vidid": api_data["id"]
+            }
+            track_id = api_data["id"]
+            streamtype = "youtube" # Humara patched downloader Catbox handle karega
+        else:
+            # 🐢 API Fail -> Local Fallback
+            try:
+                details, track_id = await YouTube.track(query)
+            except:
+                return await mystic.edit_text(_["play_3"])
+            streamtype = "youtube"
+        # ──────────────────────────────────────────────────────────
+        # 🔥 HYBRID LOGIC END
+        # ──────────────────────────────────────────────────────────
+
     if str(playmode) == "Direct":
         if not plist_type:
             if details["duration_min"]:
