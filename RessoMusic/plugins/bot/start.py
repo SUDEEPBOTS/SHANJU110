@@ -66,13 +66,13 @@ async def start_pm(client, message: Message, _):
     await asyncio.sleep(0.1)
     await loading_1.edit_text("<b>ʜєʏ ʙᴧʙʏ! 💞</b>")
     await asyncio.sleep(0.1)
-    await loading_1.edit_text("<b>𝚲𝛈𝛊𝛄𝛂</b>")
+    await loading_1.edit_text("<b>ᏦᎥᏇᎥ</b>")
     await asyncio.sleep(0.1)
-    await loading_1.edit_text("<b>𝚲𝛈𝛊𝛄𝛂 ꭙ</b>")
+    await loading_1.edit_text("<b>ᏦᎥᏇᎥ ꭙ</b>")
     await asyncio.sleep(0.1)
-    await loading_1.edit_text("<b>𝚲𝛈𝛊𝛄𝛂 ꭙ ϻᴜsɪᴄ ♪</b>")
+    await loading_1.edit_text("<b>ᏦᎥᏇᎥ 𝚇̷ M̷̷u̷̷s̷̷i̷̷c̷ ♪</b>")
     await asyncio.sleep(0.1)
-    await loading_1.edit_text("<b>𝚲𝛈𝛊𝛄𝛂 ꭙ ϻᴜsɪᴄ♪\nsᴛᴧʀᴛed❤️‍🔥!🥀</b>")
+    await loading_1.edit_text("<b>ᏦᎥᏇᎥ 𝚇̷ M̷̷u̷̷s̷̷i̷̷c̷♪\nsᴛᴧʀᴛed❤️‍🔥!🥀</b>")
     await asyncio.sleep(0.1)
     await loading_1.delete()
 
@@ -262,6 +262,7 @@ async def welcome(client, message: Message):
                 await message.stop_propagation()
         except Exception as ex:
             print(ex)
+
 
 
 
