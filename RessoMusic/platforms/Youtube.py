@@ -235,8 +235,7 @@ class YouTubeAPI:
         thumbnail = result[query_type]["thumbnails"][0]["url"].split("?")[0]
         return title, duration_min, thumbnail, vidid
 
-    # 🔥 DOWNLOAD FUNCTION (SIRF DIRECT LINK)
-    async def download(
+        async def download(
         self,
         link: str,
         mystic,
@@ -248,13 +247,8 @@ class YouTubeAPI:
         title: Union[bool, str] = None,
     ) -> str:
         
-        # ✅ SIRF CATBOX / DIRECT LINK DOWNLOAD
-        # Agar link me 'catbox' hai ya direct link hai tabhi chalega
-        if "catbox.moe" in link or "files.catbox" in link or "http" in link: 
-            # Note: "http" check is generic, but API usually sends catbox. 
-            # Safe side ke liye specific rakhna behtar hai, but API link hai to trust kar sakte hain.
-            
-            print(f"🚀 Direct Download: {link}")
+        if "catbox.moe" in link or "files.catbox" in link or "http" in link:
+            print(f"🚀 Direct Download Started: {link}")
             try:
                 if not os.path.exists("downloads"):
                     os.makedirs("downloads")
@@ -265,23 +259,28 @@ class YouTubeAPI:
                 if os.path.exists(xyz):
                     return xyz, True
 
-                async with aiohttp.ClientSession() as session:
+                # 🛠️ Timeout aur Headers add kiye hain taaki connection stable rahe
+                timeout = aiohttp.ClientTimeout(total=600) # 10 minute max
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
+
+                async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
                     async with session.get(link) as resp:
                         if resp.status == 200:
                             async with aiofiles.open(xyz, mode="wb") as f:
-                                async for chunk in resp.content.iter_chunked(1024 * 1024):
+                                async for chunk in resp.content.iter_chunked(1024 * 512): # 512KB chunks
                                     await f.write(chunk)
-                            print("✅ Download Complete")
+                            print(f"✅ Download Complete: {xyz}")
                             return xyz, True
                         else:
-                            print(f"❌ Download Failed HTTP: {resp.status}")
+                            print(f"❌ HTTP Status: {resp.status}")
                             return None, False
             except Exception as e:
-                print(f"❌ Download Error: {e}")
+                print(f"🔥 Download Crash: {e}")
                 return None, False
 
-        # ⛔ LOCAL YOUTUBE DOWNLOAD DISABLED
-        # Agar ye API link nahi hai, toh hum kuch nahi karenge.
-        print("⛔ Local YouTube Download System is OFF.")
+        print("⛔ Local YouTube Download is OFF.")
         return None, False
+        
         
