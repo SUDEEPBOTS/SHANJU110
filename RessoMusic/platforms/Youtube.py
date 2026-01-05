@@ -2,6 +2,8 @@ import asyncio
 import os
 import re
 from typing import Union
+import aiohttp
+import aiofiles
 
 import yt_dlp
 from pyrogram.enums import MessageEntityType
@@ -10,6 +12,7 @@ from youtubesearchpython.__future__ import VideosSearch
 
 from RessoMusic.utils.database import is_on_off
 from RessoMusic.utils.formatters import time_to_seconds
+from config import MUSIC_API_URL, MUSIC_API_KEY
 
 
 async def shell_cmd(cmd):
@@ -34,6 +37,28 @@ class YouTubeAPI:
         self.status = "https://www.youtube.com/oembed?url="
         self.listbase = "https://youtube.com/playlist?list="
         self.reg = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+    # 🔥 NEW: API HELPER FUNCTION
+    async def get_api_video(self, query: str):
+        if not MUSIC_API_URL:
+            return None
+            
+        # URL formatting fix
+        base_url = MUSIC_API_URL.rstrip("/")
+        url = f"{base_url}/getvideo"
+        params = {"query": query, "key": MUSIC_API_KEY}
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, timeout=30) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        # Check if API returned success
+                        if data.get("status") == 200:
+                            return data
+        except Exception as e:
+            print(f"⚠️ Sudeep API Error: {e}")
+        return None
 
     async def exists(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -155,7 +180,24 @@ class YouTubeAPI:
             result = []
         return result
 
+    # 🔥 MODIFIED: TRACK FUNCTION (Hybrid Logic)
     async def track(self, link: str, videoid: Union[bool, str] = None):
+        
+        # 1. Try Sudeep API First (Agar Configured hai)
+        if MUSIC_API_URL and not videoid:
+            api_data = await self.get_api_video(link)
+            if api_data:
+                # API Success: Return API details
+                track_details = {
+                    "title": api_data["title"],
+                    "link": api_data["link"], # Ye Direct Catbox Link hai
+                    "vidid": api_data["id"],
+                    "duration_min": api_data["duration"],
+                    "thumb": f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg",
+                }
+                return track_details, api_data["id"]
+
+        # 2. Fallback to Local YouTube Search (Purana Logic)
         if videoid:
             link = self.base + link
         if "&" in link:
@@ -230,6 +272,7 @@ class YouTubeAPI:
         thumbnail = result[query_type]["thumbnails"][0]["url"].split("?")[0]
         return title, duration_min, thumbnail, vidid
 
+    # 🔥 MODIFIED: DOWNLOAD FUNCTION (Direct Download Support)
     async def download(
         self,
         link: str,
@@ -241,6 +284,34 @@ class YouTubeAPI:
         format_id: Union[bool, str] = None,
         title: Union[bool, str] = None,
     ) -> str:
+        
+        # 1. Catbox / Direct Link Check
+        if "catbox.moe" in link or "files.catbox" in link:
+            try:
+                # Folder check
+                if not os.path.exists("downloads"):
+                    os.makedirs("downloads")
+                
+                filename = link.split("/")[-1]
+                xyz = os.path.join("downloads", filename)
+
+                # Agar pehle se hai to wahi return karo
+                if os.path.exists(xyz):
+                    return xyz, True
+
+                # Direct Async Download (Fast)
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(link) as resp:
+                        if resp.status == 200:
+                            async with aiofiles.open(xyz, mode="wb") as f:
+                                async for chunk in resp.content.iter_chunked(1024 * 1024):
+                                    await f.write(chunk)
+                            return xyz, True
+            except Exception as e:
+                print(f"Catbox DL Failed: {e}")
+                # Fallback to normal flow if this fails (though unlikely)
+
+        # 2. Normal YouTube DL Logic (Purana Code)
         if videoid:
             link = self.base + link
         loop = asyncio.get_running_loop()
@@ -352,3 +423,4 @@ class YouTubeAPI:
             direct = True
             downloaded_file = await loop.run_in_executor(None, audio_dl)
         return downloaded_file, direct
+                
