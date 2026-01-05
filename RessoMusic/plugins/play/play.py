@@ -334,25 +334,41 @@ async def play_commnd(
             query = query.replace("-v", "")
             
         # ──────────────────────────────────────────────────────────
-        # 🔥 HYBRID LOGIC START (Smart API Check)
+        # 🔥 HYBRID LOGIC START (Final Cookie Fix)
         # ──────────────────────────────────────────────────────────
         api_data = None
         
-        # 1. API se pucho (Agar config mein URL hai)
+        # 1. API se pucho
         if config.MUSIC_API_URL:
             api_data = await YouTube.get_api_video(query)
         
         if api_data:
-            # ✅ API Success (Direct Play)
+            # ✅ API Success
+            await mystic.edit_text("⬇️ **Downloading via Fast API...**")
+            
+            # Step A: Download File Locally (Bypass yt-dlp)
+            # Humara modified YouTube.py Catbox link ko direct download karega
+            file_path, direct = await YouTube.download(
+                api_data["link"],
+                mystic,
+                title=api_data["title"]
+            )
+            
+            # Step B: Create Details for Stream
             details = {
                 "title": api_data["title"],
                 "duration_min": api_data["duration"],
                 "thumb": f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg",
-                "link": api_data["link"], # Catbox Link
-                "vidid": api_data["id"]
+                "link": api_data["link"],
+                "path": file_path, # Local File Path de diya
+                "dur": api_data["duration"]
             }
             track_id = api_data["id"]
-            streamtype = "youtube" # Humara patched downloader Catbox handle karega
+            
+            # Step C: Set StreamType to TELEGRAM
+            # Ye trick hai: "telegram" bolenge toh bot yt-dlp use nahi karega
+            streamtype = "telegram" 
+            
         else:
             # 🐢 API Fail -> Local Fallback
             try:
@@ -363,7 +379,7 @@ async def play_commnd(
         # ──────────────────────────────────────────────────────────
         # 🔥 HYBRID LOGIC END
         # ──────────────────────────────────────────────────────────
-
+    
     if str(playmode) == "Direct":
         if not plist_type:
             if details["duration_min"]:
@@ -696,3 +712,4 @@ async def slider_queries(client, CallbackQuery, _):
         return await CallbackQuery.edit_message_media(
             media=med, reply_markup=InlineKeyboardMarkup(buttons)
         )
+
