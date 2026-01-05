@@ -235,7 +235,8 @@ class YouTubeAPI:
         thumbnail = result[query_type]["thumbnails"][0]["url"].split("?")[0]
         return title, duration_min, thumbnail, vidid
 
-            async def download(
+
+    async def download(   # ✅ SAME INDENT LEVEL
         self,
         link: str,
         mystic,
@@ -246,8 +247,8 @@ class YouTubeAPI:
         format_id: Union[bool, str] = None,
         title: Union[bool, str] = None,
     ) -> str:
-        # Function ke andar ki har line kam se kam 8 spaces (ya 2 tabs) andar honi chahiye
         if "catbox.moe" in link or "files.catbox" in link or "http" in link:
+            ...
             print(f"🚀 Direct Download Started: {link}")
             try:
                 if not os.path.exists("downloads"):
