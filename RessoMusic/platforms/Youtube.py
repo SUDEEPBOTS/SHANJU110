@@ -141,15 +141,34 @@ class YouTubeAPI:
         return thumbnail
 
     async def video(self, link: str, videoid: Union[bool, str] = None):
-        return 0, "Local YouTube Disabled"
+        if videoid:
+            link = self.base + link
+        if "&" in link:
+            link = link.split("&")[0]
+        proc = await asyncio.create_subprocess_exec(
+            "yt-dlp",
+            "-g",
+            "-f",
+            "best[height<=?720][width<=?1280]",
+            f"{link}",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if stdout:
+            return 1, stdout.decode().split("\n")[0]
+        else:
+            return 0, stderr.decode()
 
     async def playlist(self, link, limit, user_id, videoid: Union[bool, str] = None):
         if videoid:
             link = self.listbase + link
         if "&" in link:
             link = link.split("&")[0]
+        
+        cookie_arg = "--cookies cookies.txt" if os.path.exists("cookies.txt") else ""
         playlist = await shell_cmd(
-            f"yt-dlp -i --get-id --flat-playlist --playlist-end {limit} --skip-download {link}"
+            f"yt-dlp -i --get-id --flat-playlist --playlist-end {limit} --skip-download {cookie_arg} {link}"
         )
         try:
             result = playlist.split("\n")
@@ -161,6 +180,8 @@ class YouTubeAPI:
         return result
 
     async def track(self, link: str, videoid: Union[bool, str] = None):
+        
+        # 1. API Call
         if MUSIC_API_URL and not videoid:
             api_data = await self.get_api_video(link)
             if api_data:
@@ -172,6 +193,7 @@ class YouTubeAPI:
                     "thumb": f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg",
                 }, api_data["id"]
 
+        # 2. Local Fallback (Metadata)
         if videoid:
             link = self.base + link
         if "&" in link:
@@ -199,6 +221,9 @@ class YouTubeAPI:
         if "&" in link:
             link = link.split("&")[0]
         ytdl_opts = {"quiet": True}
+        if os.path.exists("cookies.txt"):
+            ytdl_opts["cookiefile"] = "cookies.txt"
+            
         ydl = yt_dlp.YoutubeDL(ytdl_opts)
         with ydl:
             formats_available = []
@@ -227,7 +252,7 @@ class YouTubeAPI:
         thumbnail = result[query_type]["thumbnails"][0]["url"].split("?")[0]
         return title, duration_min, thumbnail, vidid
 
-    # 🔥 DOWNLOAD FUNCTION (FIXED HEADERS + NO LOCAL YOUTUBE)
+    # 🔥 DOWNLOAD FUNCTION (HYBRID: DIRECT + LOCAL FALLBACK)
     async def download(
         self,
         link: str,
@@ -240,43 +265,135 @@ class YouTubeAPI:
         title: Union[bool, str] = None,
     ) -> str:
         
-        # ✅ SIRF DIRECT LINK ALLOWED (Catbox/API)
+        # ✅ 1. DIRECT DOWNLOAD (API/Catbox)
         if "catbox.moe" in link or "files.catbox" in link or "http" in link:
-            print(f"🚀 DEBUG: Attempting Direct Download: {link}")
-            try:
-                if not os.path.exists("downloads"):
-                    os.makedirs("downloads")
-                
-                filename = link.split("/")[-1]
-                xyz = os.path.join("downloads", filename)
+            # Check: Agar Youtube link nahi hai tabhi direct try karo
+            if "youtube.com" not in link and "youtu.be" not in link:
+                print(f"🚀 DEBUG: Attempting Direct Download: {link}")
+                try:
+                    if not os.path.exists("downloads"):
+                        os.makedirs("downloads")
+                    
+                    filename = link.split("/")[-1]
+                    xyz = os.path.join("downloads", filename)
 
-                if os.path.exists(xyz):
-                    return xyz, True
+                    if os.path.exists(xyz):
+                        return xyz, True
 
-                # ✅ HEADERS (To prevent Disconnects)
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                    # Headers + Timeout to fix Disconnects
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                    }
+                    timeout = aiohttp.ClientTimeout(total=600)
+
+                    async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
+                        async with session.get(link) as resp:
+                            if resp.status == 200:
+                                async with aiofiles.open(xyz, mode="wb") as f:
+                                    async for chunk in resp.content.iter_chunked(1024 * 512):
+                                        await f.write(chunk)
+                                print("✅ DEBUG: Direct Download Complete")
+                                return xyz, True
+                            else:
+                                print(f"❌ DEBUG: Failed HTTP: {resp.status}")
+                except Exception as e:
+                    print(f"🔥 DEBUG: Direct Download Crash: {e}")
+                # Crash hua toh niche Local Fallback chalega 👇
+
+        # ✅ 2. LOCAL DOWNLOAD FALLBACK (YouTube DL)
+        # Ye tabhi chalega jab upar wala fail ho ya link YouTube ka ho
+        print("🐢 DEBUG: Switching to Local YouTube Download...")
+        if videoid:
+            link = self.base + link
+        loop = asyncio.get_running_loop()
+
+        def get_opts(tmpl, fmt):
+            opts = {
+                "format": fmt,
+                "outtmpl": tmpl,
+                "geo_bypass": True,
+                "nocheckcertificate": True,
+                "quiet": True,
+                "no_warnings": True,
+            }
+            if os.path.exists("cookies.txt"):
+                opts["cookiefile"] = "cookies.txt"
+            return opts
+
+        def audio_dl():
+            x = yt_dlp.YoutubeDL(get_opts("downloads/%(id)s.%(ext)s", "bestaudio/best"))
+            info = x.extract_info(link, False)
+            xyz = os.path.join("downloads", f"{info['id']}.{info['ext']}")
+            if os.path.exists(xyz):
+                return xyz
+            x.download([link])
+            return xyz
+
+        def video_dl():
+            x = yt_dlp.YoutubeDL(get_opts("downloads/%(id)s.%(ext)s", "(bestvideo[height<=?720][width<=?1280][ext=mp4])+(bestaudio[ext=m4a])"))
+            info = x.extract_info(link, False)
+            xyz = os.path.join("downloads", f"{info['id']}.{info['ext']}")
+            if os.path.exists(xyz):
+                return xyz
+            x.download([link])
+            return xyz
+
+        def song_video_dl():
+            opts = get_opts(f"downloads/{title}", f"{format_id}+140")
+            opts["prefer_ffmpeg"] = True
+            opts["merge_output_format"] = "mp4"
+            x = yt_dlp.YoutubeDL(opts)
+            x.download([link])
+
+        def song_audio_dl():
+            opts = get_opts(f"downloads/{title}.%(ext)s", format_id)
+            opts["prefer_ffmpeg"] = True
+            opts["postprocessors"] = [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
                 }
-                
-                # ✅ TIMEOUT (10 Minutes)
-                timeout = aiohttp.ClientTimeout(total=600)
+            ]
+            x = yt_dlp.YoutubeDL(opts)
+            x.download([link])
 
-                async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
-                    async with session.get(link) as resp:
-                        if resp.status == 200:
-                            async with aiofiles.open(xyz, mode="wb") as f:
-                                async for chunk in resp.content.iter_chunked(1024 * 512): # 512KB Chunks
-                                    await f.write(chunk)
-                            print("✅ DEBUG: Download Complete")
-                            return xyz, True
-                        else:
-                            print(f"❌ DEBUG: Failed HTTP: {resp.status}")
-                            return None, False
-            except Exception as e:
-                print(f"🔥 DEBUG: Direct Download Crash: {e}")
-                return None, False
-
-        # ⛔ LOCAL YOUTUBE DOWNLOAD DISABLED
-        print("⛔ Local YouTube Download is OFF.")
-        return None, False
+        # Execute in Thread
+        try:
+            if songvideo:
+                await loop.run_in_executor(None, song_video_dl)
+                fpath = f"downloads/{title}.mp4"
+                return fpath
+            elif songaudio:
+                await loop.run_in_executor(None, song_audio_dl)
+                fpath = f"downloads/{title}.mp3"
+                return fpath
+            elif video:
+                if await is_on_off(1):
+                    direct = True
+                    downloaded_file = await loop.run_in_executor(None, video_dl)
+                else:
+                    cmd_list = ["yt-dlp", "-g", "-f", "best[height<=?720][width<=?1280]", f"{link}"]
+                    if os.path.exists("cookies.txt"):
+                        cmd_list.extend(["--cookies", "cookies.txt"])
+                    proc = await asyncio.create_subprocess_exec(
+                        *cmd_list,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+                    stdout, stderr = await proc.communicate()
+                    if stdout:
+                        downloaded_file = stdout.decode().split("\n")[0]
+                        direct = None
+                    else:
+                        return
+            else:
+                direct = True
+                downloaded_file = await loop.run_in_executor(None, audio_dl)
+            
+            return downloaded_file, direct
         
+        except Exception as e:
+            print(f"❌ Local DL Error: {e}")
+            return None, False
+            
