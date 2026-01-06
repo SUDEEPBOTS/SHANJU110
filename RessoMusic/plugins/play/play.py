@@ -334,8 +334,8 @@ async def play_commnd(
         query = message.text.split(None, 1)[1]
         if "-v" in query:
             query = query.replace("-v", "")
-                 # ──────────────────────────────────────────────────────────
-        # 🔥 HYBRID LOGIC START (Fastest Mode)
+           # ──────────────────────────────────────────────────────────
+        # 🔥 HYBRID LOGIC START (Safe Thumbnail)
         # ──────────────────────────────────────────────────────────
         api_data = None
         
@@ -345,28 +345,32 @@ async def play_commnd(
         if api_data:
             # ✅ API Success
             
-            # 1. Download File (Direct Link)
+            # 1. Download File
             file_path, direct = await YouTube.download(
                 link=api_data["link"],
                 mystic=mystic,
                 title=api_data["title"]
             )
             
-            # 2. Generate Thumbnail (FAST MODE)
-            # Hum URL khud bhej rahe hain taaki search na karna pade
+            # 2. Thumbnail Logic (None Check Added)
+            thumb_path = None
             try:
                 thumb_path = await gen_thumb(
                     videoid=api_data["id"],
                     thumb_url=f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg"
                 )
             except:
+                pass
+            
+            # Agar local thumb nahi bana, toh Direct URL use karo
+            if not thumb_path:
                 thumb_path = f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg"
 
-            # 3. Details set karo
+            # 3. Details Set
             details = {
                 "title": api_data["title"],
                 "duration_min": api_data["duration"],
-                "thumb": thumb_path,  
+                "thumb": thumb_path,  # Ab ye kabhi None nahi hoga
                 "link": api_data["link"],
                 "path": file_path, 
                 "dur": api_data["duration"],
@@ -376,7 +380,7 @@ async def play_commnd(
             streamtype = "telegram" 
             
         else:
-            # 🐢 Fallback to YouTube
+            # 🐢 Fallback
             try:
                 details, track_id = await YouTube.track(query)
             except:
@@ -385,7 +389,7 @@ async def play_commnd(
         # ──────────────────────────────────────────────────────────
         # 🔥 HYBRID LOGIC END
         # ──────────────────────────────────────────────────────────
-                
+    
     if str(playmode) == "Direct":
         if not plist_type:
             if details["duration_min"]:
@@ -718,5 +722,6 @@ async def slider_queries(client, CallbackQuery, _):
         return await CallbackQuery.edit_message_media(
             media=med, reply_markup=InlineKeyboardMarkup(buttons)
     )
+
 
 
