@@ -334,9 +334,8 @@ async def play_commnd(
         query = message.text.split(None, 1)[1]
         if "-v" in query:
             query = query.replace("-v", "")
-            
-                # ──────────────────────────────────────────────────────────
-        # 🔥 HYBRID LOGIC START (Speed + Thumb Fix)
+                 # ──────────────────────────────────────────────────────────
+        # 🔥 HYBRID LOGIC START (Fastest Mode)
         # ──────────────────────────────────────────────────────────
         api_data = None
         
@@ -344,7 +343,7 @@ async def play_commnd(
             api_data = await YouTube.get_api_video(query)
         
         if api_data:
-            # ✅ API Success (Fast Mode)
+            # ✅ API Success
             
             # 1. Download File (Direct Link)
             file_path, direct = await YouTube.download(
@@ -353,17 +352,14 @@ async def play_commnd(
                 title=api_data["title"]
             )
             
-            # 2. Generate Thumbnail (FAST MODE: No Search)
-            # Hum Title, Duration khud bhej rahe hain taaki bot search na kare
+            # 2. Generate Thumbnail (FAST MODE)
+            # Hum URL khud bhej rahe hain taaki search na karna pade
             try:
                 thumb_path = await gen_thumb(
                     videoid=api_data["id"],
-                    title=api_data["title"],
-                    duration=api_data["duration"],
                     thumb_url=f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg"
                 )
-            except Exception as e:
-                print(f"Thumb Error: {e}")
+            except:
                 thumb_path = f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg"
 
             # 3. Details set karo
@@ -389,7 +385,7 @@ async def play_commnd(
         # ──────────────────────────────────────────────────────────
         # 🔥 HYBRID LOGIC END
         # ──────────────────────────────────────────────────────────
-    
+                
     if str(playmode) == "Direct":
         if not plist_type:
             if details["duration_min"]:
@@ -722,4 +718,5 @@ async def slider_queries(client, CallbackQuery, _):
         return await CallbackQuery.edit_message_media(
             media=med, reply_markup=InlineKeyboardMarkup(buttons)
     )
+
 
