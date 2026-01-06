@@ -4,7 +4,7 @@ import os
 import re
 import aiofiles
 import aiohttp
-import traceback # ✅ Fix: Added missing import
+import traceback
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 from youtubesearchpython.__future__ import VideosSearch
 
@@ -49,14 +49,6 @@ def generate_gradient(width, height, start_color, end_color):
     base.paste(top, (0, 0), mask)
     return base
 
-def add_border(image, border_width, border_color):
-    width, height = image.size
-    new_width = width + 2 * border_width
-    new_height = height + 2 * border_width
-    new_image = Image.new("RGBA", (new_width, new_height), border_color)
-    new_image.paste(image, (border_width, border_width))
-    return new_image
-
 def crop_center_circle(img, output_size, border, border_color, crop_scale=1.5):
     half_the_width = img.size[0] / 2
     half_the_height = img.size[1] / 2
@@ -69,21 +61,15 @@ def crop_center_circle(img, output_size, border, border_color, crop_scale=1.5):
             half_the_height + larger_size/2
         )
     )
-    
     img = img.resize((output_size - 2*border, output_size - 2*border))
-    
     final_img = Image.new("RGBA", (output_size, output_size), border_color)
-    
     mask_main = Image.new("L", (output_size - 2*border, output_size - 2*border), 0)
     draw_main = ImageDraw.Draw(mask_main)
     draw_main.ellipse((0, 0, output_size - 2*border, output_size - 2*border), fill=255)
-    
     final_img.paste(img, (border, border), mask_main)
-    
     mask_border = Image.new("L", (output_size, output_size), 0)
     draw_border = ImageDraw.Draw(mask_border)
     draw_border.ellipse((0, 0, output_size, output_size), fill=255)
-    
     result = Image.composite(final_img, Image.new("RGBA", final_img.size, (0, 0, 0, 0)), mask_border)
     return result
 
@@ -95,56 +81,37 @@ def draw_text_with_shadow(background, draw, position, text, font, fill, shadow_o
     background.paste(shadow, shadow_offset, shadow)
     draw.text(position, text, font=font, fill=fill)
 
-async def gen_thumb(videoid: str):
+# 🔥 Modified: Ab ye arguments accept karega
+async def gen_thumb(videoid, title=None, duration=None, thumb_url=None, views="Views", channel="Channel"):
     try:
         if os.path.isfile(f"cache/{videoid}_v4.png"):
             return f"cache/{videoid}_v4.png"
 
-        # ✅ Fix: Variables ko pehle initialize karo
-        url = f"https://www.youtube.com/watch?v={videoid}"
-        title = "Music Player"
-        duration = "00:00"
-        thumbnail = None
-        views = "Views"
-        channel = "Unknown Channel"
+        # 1. Agar Title nahi diya, tabhi Search karo (Slow Mode - Fallback)
+        if not title:
+            try:
+                url = f"https://www.youtube.com/watch?v={videoid}"
+                results = VideosSearch(url, limit=1)
+                search_result = await results.next()
+                if search_result and "result" in search_result:
+                    res = search_result["result"][0]
+                    title = res.get("title", "Music Player")
+                    duration = res.get("duration", "00:00")
+                    thumb_url = res["thumbnails"][0]["url"].split("?")[0] if res.get("thumbnails") else None
+            except:
+                pass
 
-        # ✅ Fix: Search ko try-catch me daalo taaki fail hone par crash na ho
-        try:
-            results = VideosSearch(url, limit=1)
-            search_result = await results.next()
-            
-            if search_result and "result" in search_result and len(search_result["result"]) > 0:
-                result = search_result["result"][0]
-                
-                title = result.get("title", "Unknown Title")
-                if title: title = re.sub("\W+", " ", title).title()
-                
-                duration = result.get("duration", "Live")
-                
-                thumbnail_data = result.get("thumbnails")
-                if thumbnail_data:
-                    thumbnail = thumbnail_data[0]["url"].split("?")[0]
-                
-                views_data = result.get("viewCount")
-                if views_data:
-                    views = views_data.get("short", "Unknown")
-                
-                channel_data = result.get("channel")
-                if channel_data:
-                    channel = channel_data.get("name", "Unknown")
-        except Exception as e:
-            print(f"Metadata fetch failed, using fallback: {e}")
+        # 2. Safety Check
+        if not title: title = "Music Player"
+        title = re.sub("\W+", " ", title).title()
+        if not thumb_url: thumb_url = f"https://img.youtube.com/vi/{videoid}/hqdefault.jpg"
+        if not duration: duration = "00:00"
 
-        # ✅ Fix: Agar Search se thumbnail nahi mila, toh Fallback URL use karo
-        if not thumbnail:
-            thumbnail = f"https://img.youtube.com/vi/{videoid}/hqdefault.jpg"
-
-        
+        # 3. Download Image
         async with aiohttp.ClientSession() as session:
-            async with session.get(thumbnail) as resp:
+            async with session.get(thumb_url) as resp:
                 if resp.status == 200:
-                    if not os.path.exists("cache"):
-                        os.makedirs("cache")
+                    if not os.path.exists("cache"): os.makedirs("cache")
                     filepath = f"cache/thumb{videoid}.png"
                     f = await aiofiles.open(filepath, mode="wb")
                     await f.write(await resp.read())
@@ -152,10 +119,10 @@ async def gen_thumb(videoid: str):
                 else:
                     return None
 
+        # 4. Drawing Logic (Same as before)
         image_path = f"cache/thumb{videoid}.png"
         youtube = Image.open(image_path)
         image1 = changeImageSize(1280, 720, youtube)
-        
         image2 = image1.convert("RGBA")
         background = image2.filter(filter=ImageFilter.BoxBlur(20))
         enhancer = ImageEnhance.Brightness(background)
@@ -167,8 +134,6 @@ async def gen_thumb(videoid: str):
         background = Image.blend(background, gradient_image, alpha=0.2)
         
         draw = ImageDraw.Draw(background)
-        
-        # Safe Fonts
         try:
             arial = ImageFont.truetype("RessoMusic/assets/font2.ttf", 30)
             font = ImageFont.truetype("RessoMusic/assets/font.ttf", 30)
@@ -180,63 +145,34 @@ async def gen_thumb(videoid: str):
 
         circle_thumbnail = crop_center_circle(youtube, 400, 20, start_gradient_color)
         circle_thumbnail = circle_thumbnail.resize((400, 400))
-        circle_position = (120, 160)
-        background.paste(circle_thumbnail, circle_position, circle_thumbnail)
+        background.paste(circle_thumbnail, (120, 160), circle_thumbnail)
 
-        text_x_position = 565
+        text_x = 565
         title1 = truncate(title)
-        draw_text_with_shadow(background, draw, (text_x_position, 180), title1[0], title_font, (255, 255, 255))
-        draw_text_with_shadow(background, draw, (text_x_position, 230), title1[1], title_font, (255, 255, 255))
-        draw_text_with_shadow(background, draw, (text_x_position, 320), f"{channel}  |  {views}", arial, (255, 255, 255))
+        draw_text_with_shadow(background, draw, (text_x, 180), title1[0], title_font, (255, 255, 255))
+        draw_text_with_shadow(background, draw, (text_x, 230), title1[1], title_font, (255, 255, 255))
+        draw_text_with_shadow(background, draw, (text_x, 320), f"{channel}  |  {views}", arial, (255, 255, 255))
 
-        line_length = 580  
-        if duration != "Live":
-            color_line_percentage = random.uniform(0.15, 0.85)
-            color_line_length = int(line_length * color_line_percentage)
-            
-            line_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-            start_point_color = (text_x_position, 380)
-            end_point_color = (text_x_position + color_line_length, 380)
-            draw.line([start_point_color, end_point_color], fill=line_color, width=9)
-        
-            start_point_white = (text_x_position + color_line_length, 380)
-            end_point_white = (text_x_position + line_length, 380)
-            draw.line([start_point_white, end_point_white], fill="white", width=8)
-        
-            circle_radius = 10 
-            circle_position = (end_point_color[0], end_point_color[1])
-            draw.ellipse([circle_position[0] - circle_radius, circle_position[1] - circle_radius,
-                      circle_position[0] + circle_radius, circle_position[1] + circle_radius], fill=line_color)
-        else:
-            line_color = (255, 0, 0)
-            start_point_color = (text_x_position, 380)
-            end_point_color = (text_x_position + line_length, 380)
-            draw.line([start_point_color, end_point_color], fill=line_color, width=9)
-            circle_radius = 10 
-            circle_position = (end_point_color[0], end_point_color[1])
-            draw.ellipse([circle_position[0] - circle_radius, circle_position[1] - circle_radius,
-                          circle_position[0] + circle_radius, circle_position[1] + circle_radius], fill=line_color)
+        # Progress Bar
+        draw.line([(text_x, 380), (text_x + 580, 380)], fill="gray", width=8)
+        draw.line([(text_x, 380), (text_x + 300, 380)], fill="white", width=8) # Fake progress
+        draw.ellipse([text_x + 290, 370, text_x + 310, 390], fill="white")
 
-        draw_text_with_shadow(background, draw, (text_x_position, 400), "00:00", arial, (255, 255, 255))
+        draw_text_with_shadow(background, draw, (text_x, 400), "00:00", arial, (255, 255, 255))
         draw_text_with_shadow(background, draw, (1080, 400), duration, arial, (255, 255, 255))
         
         try:
-            play_icons = Image.open("RessoMusic/assets/play_icons.png")
-            play_icons = play_icons.resize((580, 62))
-            background.paste(play_icons, (text_x_position, 450), play_icons)
-        except:
-            pass
+            play_icons = Image.open("RessoMusic/assets/play_icons.png").resize((580, 62))
+            background.paste(play_icons, (text_x, 450), play_icons)
+        except: pass
 
-        if os.path.exists(f"cache/thumb{videoid}.png"):
-            os.remove(f"cache/thumb{videoid}.png")
-
-        background_path = f"cache/{videoid}_v4.png"
-        background.save(background_path)
-        
-        return background_path
+        if os.path.exists(filepath): os.remove(filepath)
+        final_path = f"cache/{videoid}_v4.png"
+        background.save(final_path)
+        return final_path
 
     except Exception as e:
-        logging.error(f"Error generating thumbnail for video {videoid}: {e}")
+        print(f"Thumb Error: {e}")
         traceback.print_exc()
         return None
-                  
+        
