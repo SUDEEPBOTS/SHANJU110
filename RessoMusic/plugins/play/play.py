@@ -335,52 +335,52 @@ async def play_commnd(
         if "-v" in query:
             query = query.replace("-v", "")
             
-        # ──────────────────────────────────────────────────────────
-        # 🔥 HYBRID LOGIC START (Thumbnail FORCED)
+                # ──────────────────────────────────────────────────────────
+        # 🔥 HYBRID LOGIC START (Speed + Thumb Fix)
         # ──────────────────────────────────────────────────────────
         api_data = None
         
-        # 1. API se pucho
         if config.MUSIC_API_URL:
             api_data = await YouTube.get_api_video(query)
         
         if api_data:
-            # ✅ API Success
+            # ✅ API Success (Fast Mode)
             
-            # Step A: Direct Download
+            # 1. Download File (Direct Link)
             file_path, direct = await YouTube.download(
                 link=api_data["link"],
                 mystic=mystic,
                 title=api_data["title"]
             )
             
-            # 🔥 Step B: Force Thumbnail Generation
+            # 2. Generate Thumbnail (FAST MODE: No Search)
+            # Hum Title, Duration khud bhej rahe hain taaki bot search na kare
             try:
-                # "gen_thumb" call karke local file banayenge
-                # Ye tere 'thumbnails.py' se chalega
-                thumb_path = await gen_thumb(api_data["id"]) 
+                thumb_path = await gen_thumb(
+                    videoid=api_data["id"],
+                    title=api_data["title"],
+                    duration=api_data["duration"],
+                    thumb_url=f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg"
+                )
             except Exception as e:
-                print(f"Thumb Fail: {e}")
-                # Fallback to simple link if fail
+                print(f"Thumb Error: {e}")
                 thumb_path = f"https://img.youtube.com/vi/{api_data['id']}/hqdefault.jpg"
 
-            # Step C: Details set karo
+            # 3. Details set karo
             details = {
                 "title": api_data["title"],
                 "duration_min": api_data["duration"],
-                "thumb": thumb_path,  # <--- Ab ye Custom Thumbnail hoga
+                "thumb": thumb_path,  
                 "link": api_data["link"],
                 "path": file_path, 
                 "dur": api_data["duration"],
                 "vidid": api_data["id"]
             }
             track_id = api_data["id"]
-            
-            # Step D: Telegram Mode (No Cookies Check)
             streamtype = "telegram" 
             
         else:
-            # 🐢 API Fail -> Fallback to YouTube
+            # 🐢 Fallback to YouTube
             try:
                 details, track_id = await YouTube.track(query)
             except:
@@ -389,7 +389,7 @@ async def play_commnd(
         # ──────────────────────────────────────────────────────────
         # 🔥 HYBRID LOGIC END
         # ──────────────────────────────────────────────────────────
-
+    
     if str(playmode) == "Direct":
         if not plist_type:
             if details["duration_min"]:
@@ -722,3 +722,4 @@ async def slider_queries(client, CallbackQuery, _):
         return await CallbackQuery.edit_message_media(
             media=med, reply_markup=InlineKeyboardMarkup(buttons)
     )
+
