@@ -1,3 +1,4 @@
+import time  # 🔥 1. Added time module
 import os
 from random import randint
 from typing import Union
@@ -29,6 +30,9 @@ async def stream(
     spotify: Union[bool, str] = None,
     forceplay: Union[bool, str] = None,
 ):
+    # 🔥 2. Timer Start Here
+    start_time = time.time()
+
     if not result:
         return
     if forceplay:
@@ -133,7 +137,7 @@ async def stream(
                 has_spoiler=True
             )
     
-    # 🔥 UPDATED YOUTUBE BLOCK (Supports API + Aria2)
+    # 🔥 UPDATED YOUTUBE BLOCK (Supports API + Aria2 + Timer)
     elif streamtype == "youtube":
         link = result["link"]
         vidid = result["vidid"]
@@ -206,6 +210,10 @@ async def stream(
             )
             img = await gen_thumb(vidid)
             button = stream_markup(_, chat_id)
+
+            # 🔥 3. Calculate Time & Pass to Caption
+            load_time = round(time.time() - start_time, 2)
+
             run = await app.send_photo(
                 original_chat_id,
                 photo=img,
@@ -214,6 +222,7 @@ async def stream(
                     title[:23],
                     duration_min,
                     user_name,
+                    load_time  # <--- Added Variable for Time
                 ),
                 reply_markup=InlineKeyboardMarkup(button),
                 has_spoiler=True
