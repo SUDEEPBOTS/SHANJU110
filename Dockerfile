@@ -1,16 +1,40 @@
-FROM nikolaik/python-nodejs:python3.10-nodejs19
+FROM python:3.11-slim
 
-RUN sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g' /etc/apt/sources.list && \
-    sed -i '/security.debian.org/d' /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg aria2 && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# ─────────────────────────────
+# System dependencies + Node.js
+# ─────────────────────────────
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    curl \
+    ca-certificates \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . /app/
-WORKDIR /app/
+# ─────────────────────────────
+# yt-dlp (Python module)
+# ─────────────────────────────
+RUN pip install --no-cache-dir yt-dlp
 
-RUN python -m pip install --no-cache-dir --upgrade pip
-RUN pip3 install --no-cache-dir --upgrade --requirement requirements.txt
+# ─────────────────────────────
+# Python dependencies
+# ─────────────────────────────
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-CMD bash start
+# ─────────────────────────────
+# App code
+# ─────────────────────────────
+WORKDIR /app
+COPY . /app
+
+# ─────────────────────────────
+# Expose port (Render ignores but ok)
+# ─────────────────────────────
+EXPOSE 10000
+
+# ─────────────────────────────
+# Start server
+# ─────────────────────────────
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000", "--workers", "1", "--timeout-keep-alive", "75"]
+
