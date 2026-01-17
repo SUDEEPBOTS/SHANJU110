@@ -22,7 +22,7 @@ BOT_USERNAME = "@ANIYA_MUSIC_BOT"
 
 # Default URL maine aapki wali daal di hai
 
-MUSIC_API_URL = getenv("MUSIC_API_URL", "https://fastapi2-znj2.onrender.com")
+MUSIC_API_URL = getenv("MUSIC_API_URL", "https://fastapi2-wdtl.onrender.com")
 
 MUSIC_API_KEY = getenv("MUSIC_API_KEY", None)
 
@@ -130,6 +130,7 @@ if SUPPORT_GROUP:
         raise SystemExit(
             "[ERROR] - Your SUPPORT_GROUP url is wrong. Please ensure that it starts with https://"
         )
+
 
 
 
