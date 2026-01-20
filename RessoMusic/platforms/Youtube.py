@@ -11,7 +11,7 @@ from youtubesearchpython.__future__ import VideosSearch
 
 from RessoMusic.utils.database import is_on_off
 from RessoMusic.utils.formatters import time_to_seconds
-from config import MUSIC_API_URL  # Ensure this is "https://saavn.sumit.co/api/search/songs"
+from config import MUSIC_API_URL  # Ensure this is correct in config.py
 
 async def shell_cmd(cmd):
     proc = await asyncio.create_subprocess_shell(
@@ -35,24 +35,21 @@ class YouTubeAPI:
         self.listbase = "https://youtube.com/playlist?list="
         self.reg = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
-    # 🔥 NEW: API SEARCH FUNCTION
+    # 🔥 API SEARCH FUNCTION
     async def get_api_video(self, query: str):
         if not MUSIC_API_URL:
             return None
             
-        # URL Construction
-        # API: https://saavn.sumit.co/api/search/songs?query=...
         url = MUSIC_API_URL 
-        params = {"query": query, "limit": 1} # Hum sirf top result lenge
+        params = {"query": query, "limit": 1}
 
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, params=params, timeout=10) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        # Check API Success
                         if data.get("success") is True and data.get("data") and data["data"].get("results"):
-                            return data["data"]["results"][0] # Return First Song
+                            return data["data"]["results"][0]
         except Exception as e:
             print(f"⚠️ API Error: {e}")
         return None
@@ -93,10 +90,6 @@ class YouTubeAPI:
             umm = umm.split("?si=")[0]
         return umm
 
-    # ... [Keep details, title, duration, thumbnail methods same as original if needed for fallbacks] ...
-    # Maine unhe short kar diya hai taaki code clean rahe, but agar wo call nahi hote toh issue nahi hai.
-    # Main focus "track" aur "download" par hai.
-
     async def title(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
             link = self.base + link
@@ -127,20 +120,17 @@ class YouTubeAPI:
             thumbnail = result["thumbnails"][0]["url"].split("?")[0]
         return thumbnail
 
-    # 🔥 IMPORTANT: TRACK FUNCTION (Heart of the Bot)
+    # 🔥 TRACK FUNCTION (API handling)
     async def track(self, link: str, videoid: Union[bool, str] = None):
         # 1. Try Custom API First
-        # Agar link YouTube ka nahi hai aur videoid None hai (matlab raw query hai)
         if MUSIC_API_URL and not videoid and not "http" in link:
             song = await self.get_api_video(link)
             if song:
-                # Best Quality Audio Extraction (Last index usually 320kbps)
                 try:
                     direct_link = song["downloadUrl"][-1]["url"]
                 except:
                     direct_link = song["downloadUrl"][0]["url"]
 
-                # Best Quality Image
                 try:
                     thumb_link = song["image"][-1]["url"]
                 except:
@@ -148,13 +138,13 @@ class YouTubeAPI:
 
                 return {
                     "title": song["name"],
-                    "link": direct_link,  # 👈 YE HAI DIRECT STREAM LINK
+                    "link": direct_link,
                     "vidid": song["id"],
-                    "duration_min": song.get("duration", 0), # Duration seconds me ho sakti hai
+                    "duration_min": song.get("duration", 0),
                     "thumb": thumb_link,
                 }, song["id"]
 
-        # 2. Fallback to Local YouTube Search (Original Logic)
+        # 2. Fallback to Local YouTube Search
         if videoid:
             link = self.base + link
         if "&" in link:
@@ -242,47 +232,16 @@ class YouTubeAPI:
         title: Union[bool, str] = None,
     ) -> str:
         
-        # 🔥 1. ARIA2 DOWNLOADER FOR DIRECT LINKS
-        # Agar link HTTP hai aur YouTube ka nahi hai (Matlab API wala link hai)
+        # 🔥 ULTRA FAST MODE: DIRECT STREAM (NO DOWNLOAD)
+        # Check if link is direct HTTP (from API) and NOT YouTube
         is_youtube = ("youtube.com" in link or "youtu.be" in link)
+        
         if "http" in link and not is_youtube and not videoid:
-            try:
-                if not os.path.exists("downloads"):
-                    os.makedirs("downloads")
+            # IMPORTANT: Hum file download nahi kar rahe.
+            # Hum seedha Link return kar rahe hain jo PyTgCalls stream karega.
+            return link, True 
 
-                # Generate Filename
-                # Agar title mila hai toh use karo, warna random
-                clean_title = title if title else f"audio_{os.urandom(4).hex()}"
-                clean_title = re.sub(r'[\\/*?:"<>|]', "", clean_title) # Remove bad chars
-                filename = f"{clean_title}.mp3"
-                
-                xyz = os.path.join("downloads", filename)
-
-                if os.path.exists(xyz):
-                    return xyz, True
-
-                # Aria2 Command (Super Fast Download)
-                cmd = [
-                    "aria2c",
-                    "-x16", "-s16",
-                    "-d", "downloads",
-                    "-o", filename,
-                    link
-                ]
-                
-                process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                await process.communicate()
-
-                if os.path.exists(xyz):
-                    return xyz, True
-            except Exception as e:
-                print(f"⚠️ Aria2 Exception: {e}")
-
-        # ⬇️ 2. ORIGINAL YT-DLP FALLBACK (Video Download ya YouTube Link ke liye)
+        # ⬇️ Agar YouTube link hai toh purana tarika (yt-dlp) use karega
         if videoid:
             link = self.base + link
         loop = asyncio.get_running_loop()
