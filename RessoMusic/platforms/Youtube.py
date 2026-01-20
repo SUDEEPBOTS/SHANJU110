@@ -232,16 +232,47 @@ class YouTubeAPI:
         title: Union[bool, str] = None,
     ) -> str:
         
-        # 🔥 ULTRA FAST MODE: DIRECT STREAM (NO DOWNLOAD)
-        # Check if link is direct HTTP (from API) and NOT YouTube
+        # 🔥 ULTRA FAST DOWNLOADER (WITH HEADERS TO BYPASS BLOCK)
         is_youtube = ("youtube.com" in link or "youtu.be" in link)
         
         if "http" in link and not is_youtube and not videoid:
-            # IMPORTANT: Hum file download nahi kar rahe.
-            # Hum seedha Link return kar rahe hain jo PyTgCalls stream karega.
-            return link, True 
+            try:
+                if not os.path.exists("downloads"):
+                    os.makedirs("downloads")
 
-        # ⬇️ Agar YouTube link hai toh purana tarika (yt-dlp) use karega
+                # Clean Title
+                clean_title = title if title else f"audio_{os.urandom(4).hex()}"
+                clean_title = re.sub(r'[\\/*?:"<>|]', "", clean_title)
+                filename = f"{clean_title}.mp3"
+                xyz = os.path.join("downloads", filename)
+
+                # Check cache (Instant Play)
+                if os.path.exists(xyz) and os.path.getsize(xyz) > 50000:
+                    return xyz, True
+
+                # BROWSER HEADERS (Important for JioSaavn/API links)
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
+
+                # Fast Download via aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(link, headers=headers) as resp:
+                        if resp.status == 200:
+                            with open(xyz, 'wb') as f:
+                                while True:
+                                    chunk = await resp.content.read(4096)
+                                    if not chunk:
+                                        break
+                                    f.write(chunk)
+                            
+                            # Verify File
+                            if os.path.exists(xyz) and os.path.getsize(xyz) > 1024:
+                                return xyz, True
+            except Exception as e:
+                print(f"⚠️ Direct Download Error: {e}")
+
+        # ⬇️ FALLBACK: YT-DLP (Original)
         if videoid:
             link = self.base + link
         loop = asyncio.get_running_loop()
