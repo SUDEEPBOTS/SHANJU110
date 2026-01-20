@@ -11,7 +11,8 @@ from youtubesearchpython.__future__ import VideosSearch
 
 from RessoMusic.utils.database import is_on_off
 from RessoMusic.utils.formatters import time_to_seconds
-from config import MUSIC_API_URL  # Ensure this is correct in config.py
+# 👇 Ye line sabse zaroori hai. Agar config.py mein ye nahi hai toh add kar lena.
+from config import MUSIC_API_URL  
 
 async def shell_cmd(cmd):
     proc = await asyncio.create_subprocess_shell(
@@ -35,7 +36,7 @@ class YouTubeAPI:
         self.listbase = "https://youtube.com/playlist?list="
         self.reg = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
-    # 🔥 API SEARCH FUNCTION
+    # 🔥 1. API SEARCH (Fastest)
     async def get_api_video(self, query: str):
         if not MUSIC_API_URL:
             return None
@@ -120,31 +121,34 @@ class YouTubeAPI:
             thumbnail = result["thumbnails"][0]["url"].split("?")[0]
         return thumbnail
 
-    # 🔥 TRACK FUNCTION (API handling)
+    # 🔥 2. TRACK FUNCTION (Link Extractor)
     async def track(self, link: str, videoid: Union[bool, str] = None):
-        # 1. Try Custom API First
-        if MUSIC_API_URL and not videoid and not "http" in link:
-            song = await self.get_api_video(link)
-            if song:
-                try:
-                    direct_link = song["downloadUrl"][-1]["url"]
-                except:
-                    direct_link = song["downloadUrl"][0]["url"]
+        # Try API First (Fast Mode)
+        try:
+            if MUSIC_API_URL and not videoid and not "http" in link:
+                song = await self.get_api_video(link)
+                if song:
+                    try:
+                        direct_link = song["downloadUrl"][-1]["url"]
+                    except:
+                        direct_link = song["downloadUrl"][0]["url"]
 
-                try:
-                    thumb_link = song["image"][-1]["url"]
-                except:
-                    thumb_link = song["image"][0]["url"]
+                    try:
+                        thumb_link = song["image"][-1]["url"]
+                    except:
+                        thumb_link = song["image"][0]["url"]
 
-                return {
-                    "title": song["name"],
-                    "link": direct_link,
-                    "vidid": song["id"],
-                    "duration_min": song.get("duration", 0),
-                    "thumb": thumb_link,
-                }, song["id"]
+                    return {
+                        "title": song["name"],
+                        "link": direct_link,
+                        "vidid": song["id"],
+                        "duration_min": song.get("duration", 0),
+                        "thumb": thumb_link,
+                    }, song["id"]
+        except NameError:
+            print("⚠️ MUSIC_API_URL not defined properly")
 
-        # 2. Fallback to Local YouTube Search
+        # Fallback to YouTube (Slow Mode)
         if videoid:
             link = self.base + link
         if "&" in link:
@@ -220,6 +224,7 @@ class YouTubeAPI:
         thumbnail = result[query_type]["thumbnails"][0]["url"].split("?")[0]
         return title, duration_min, thumbnail, vidid
 
+    # 🔥 3. DOWNLOAD FUNCTION (Ultra Fast Hybrid)
     async def download(
         self,
         link: str,
@@ -232,30 +237,30 @@ class YouTubeAPI:
         title: Union[bool, str] = None,
     ) -> str:
         
-        # 🔥 ULTRA FAST DOWNLOADER (WITH HEADERS TO BYPASS BLOCK)
         is_youtube = ("youtube.com" in link or "youtu.be" in link)
         
+        # Check: Agar Direct Link hai (API wala)
         if "http" in link and not is_youtube and not videoid:
             try:
                 if not os.path.exists("downloads"):
                     os.makedirs("downloads")
 
-                # Clean Title
                 clean_title = title if title else f"audio_{os.urandom(4).hex()}"
                 clean_title = re.sub(r'[\\/*?:"<>|]', "", clean_title)
                 filename = f"{clean_title}.mp3"
                 xyz = os.path.join("downloads", filename)
 
-                # Check cache (Instant Play)
+                # Instant Play from Cache
                 if os.path.exists(xyz) and os.path.getsize(xyz) > 50000:
                     return xyz, True
 
-                # BROWSER HEADERS (Important for JioSaavn/API links)
+                # BROWSER HEADERS (Ye block hone se bachayega)
                 headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                    "Referer": "https://www.jiosaavn.com/"
                 }
 
-                # Fast Download via aiohttp
+                # High Speed Download
                 async with aiohttp.ClientSession() as session:
                     async with session.get(link, headers=headers) as resp:
                         if resp.status == 200:
@@ -266,13 +271,12 @@ class YouTubeAPI:
                                         break
                                     f.write(chunk)
                             
-                            # Verify File
                             if os.path.exists(xyz) and os.path.getsize(xyz) > 1024:
                                 return xyz, True
             except Exception as e:
-                print(f"⚠️ Direct Download Error: {e}")
+                print(f"⚠️ Direct Download Failed: {e}")
 
-        # ⬇️ FALLBACK: YT-DLP (Original)
+        # Fallback to YT-DLP
         if videoid:
             link = self.base + link
         loop = asyncio.get_running_loop()
