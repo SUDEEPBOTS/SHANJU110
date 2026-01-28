@@ -27,18 +27,15 @@ def private_panel(_):
         [
             InlineKeyboardButton(text=_["S_B_4"], callback_data="settings_back_helper"),
             InlineKeyboardButton(text=_["S_B_2"], url=config.SUPPORT_GROUP),
-            InlineKeyboardButton("˹ʜᴏϻє˼", url="https://t.me/MissRose_bot"),
+            InlineKeyboardButton("˹ϻʏ ʜᴏϻє˼", url="https://t.me/+rQqhGhdP7tRkMmM1"),
         ],
         [
-            InlineKeyboardButton("˹rose ᴛᴜɴᴇs˼♪", url="https://yukiapp-steel.vercel.app/"),
+            InlineKeyboardButton("˹ᴀɴɪʏᴀ ᴛᴜɴᴇs˼♪", url="https://yukiapp-steel.vercel.app/"),
         ],
         [
-            InlineKeyboardButton("˹ ϻʏ ϻᴧsᴛєʀ ˼", url="http://T.me/MissRose_bot"),
+            InlineKeyboardButton("˹ ϻʏ ϻᴧsᴛєʀ ˼", url="http://T.me/THE_BOSS_JI"),
             # InlineKeyboardButton(text=_["S_B_7"], url=config.UPSTREAM_REPO),
         ],
     ]
     return buttons
-
-
-
 
