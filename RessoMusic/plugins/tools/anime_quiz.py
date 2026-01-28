@@ -16,7 +16,7 @@ from RessoMusic.plugins.tools.quiz_db import (
 )
 
 # ================= CONFIGURATION =================
-# Put your Main Group ID here (e.g. -100123456789)
+# Updated Main Group ID
 MAIN_GROUP_ID = -1003482585012
 
 # Updated Links
@@ -219,9 +219,9 @@ async def show_lb(client, message):
     btn = InlineKeyboardMarkup([[InlineKeyboardButton(text="🔎 CHECK PROOF", url=PROOF_LINK)]])
     await message.reply(txt, reply_markup=btn)
 
-# --- ADMIN COMMANDS ---
+# --- ADMIN COMMANDS (FIXED: Added list() to SUDOERS) ---
 
-@app.on_message(filters.command("addq") & filters.user(SUDOERS))
+@app.on_message(filters.command("addq") & filters.user(list(SUDOERS)))
 async def add_q_cmd(client, message):
     try:
         text = message.text.split(None, 1)[1]
@@ -236,7 +236,7 @@ async def add_q_cmd(client, message):
     except:
         await message.reply("Error in format.")
 
-@app.on_message(filters.command("setprize") & filters.user(SUDOERS))
+@app.on_message(filters.command("setprize") & filters.user(list(SUDOERS)))
 async def set_p_cmd(client, message):
     try:
         text = message.text.split(None, 1)[1]
@@ -245,8 +245,7 @@ async def set_p_cmd(client, message):
     except:
         pass
 
-# Manual End Season Command
-@app.on_message(filters.command("endseason") & filters.user(SUDOERS))
+@app.on_message(filters.command("endseason") & filters.user(list(SUDOERS)))
 async def manual_end_season(client, message):
     await end_season_logic(auto=False)
-  
+    
