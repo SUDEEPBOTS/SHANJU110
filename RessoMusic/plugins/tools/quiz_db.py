@@ -4,6 +4,8 @@ from RessoMusic.misc import mongodb
 quizdb = mongodb.anime_quiz_users
 settingsdb = mongodb.anime_quiz_settings
 questionsdb = mongodb.anime_quiz_questions
+apidb = mongodb.anime_quiz_api
+useddb = mongodb.anime_quiz_history  # NEW: Ye purane questions yaad rakhega
 
 # --- SMALL CAPS CONVERTER ---
 def smcp(text):
@@ -42,7 +44,6 @@ async def get_prize():
     doc = await settingsdb.find_one({"_id": "prizes"})
     return doc["text"] if doc else smcp("No Prizes Announced Yet.")
 
-# --- MONTH TRACKING (FOR AUTO END) ---
 async def get_stored_month():
     doc = await settingsdb.find_one({"_id": "current_season"})
     return doc["month"] if doc else None
@@ -50,7 +51,36 @@ async def get_stored_month():
 async def set_stored_month(month_str):
     await settingsdb.update_one({"_id": "current_season"}, {"$set": {"month": month_str}}, upsert=True)
 
-# --- QUESTIONS MANAGEMENT ---
+# --- GROQ API MANAGEMENT ---
+async def add_api_key(key):
+    exist = await apidb.find_one({"key": key})
+    if not exist:
+        await apidb.insert_one({"key": key})
+        return True
+    return False
+
+async def remove_api_key(key):
+    result = await apidb.delete_one({"key": key})
+    return result.deleted_count > 0
+
+async def get_random_api_key():
+    pipeline = [{"$sample": {"size": 1}}]
+    cursor = apidb.aggregate(pipeline)
+    async for doc in cursor:
+        return doc["key"]
+    return None
+
+# --- DUPLICATE CHECKER (HISTORY) ---
+async def is_question_used(q_text):
+    # Check if exact question text exists in history
+    found = await useddb.find_one({"q": q_text})
+    return bool(found)
+
+async def mark_question_used(q_text):
+    # Save question to history
+    await useddb.insert_one({"q": q_text})
+
+# --- QUESTIONS (Hybrid) ---
 async def add_question(question, options, correct_answer):
     await questionsdb.insert_one({
         "q": question,
@@ -64,4 +94,4 @@ async def get_random_question():
     async for doc in cursor:
         return doc
     return None
-  
+    
