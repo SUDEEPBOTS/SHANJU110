@@ -3,7 +3,7 @@ import random
 import requests
 import json
 from datetime import datetime
-from pyrogram import filters
+from pyrogram import filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 from RessoMusic import app
@@ -92,17 +92,16 @@ async def redirect_handler(client, message):
 
     if message.text.split()[0] in ["/quiz", "/leaderboard", "/top", "/rank"]:
         prizes = await get_prize()
+        # HTML Formatting
         txt = (
-            f"> 🚫 **{smcp('Wrong Place!')}**\n"
-            f"> \n"
-            f"> 🎮 {smcp('The Quiz Tournament is running only in the Main Group.')}\n"
-            f"> \n"
-            f"> 🎁 **{smcp('Current Prizes')}:**\n> {prizes}"
+            f"<blockquote>🚫 <b>{smcp('Wrong Place!')}</b>\n\n"
+            f"🎮 {smcp('The Quiz Tournament is running only in the Main Group.')}\n\n"
+            f"🎁 <b>{smcp('Current Prizes')}:</b>\n{prizes}</blockquote>"
         )
         btn = InlineKeyboardMarkup([
             [InlineKeyboardButton(text="🔥 JOIN MAIN GROUP", url=MAIN_GROUP_LINK)]
         ])
-        await message.reply(txt, reply_markup=btn)
+        await message.reply(txt, reply_markup=btn, parse_mode=enums.ParseMode.HTML)
 
 # --- WATCHER ---
 @app.on_message(filters.chat(MAIN_GROUP_ID) & ~filters.bot & ~BANNED_USERS, group=69)
@@ -117,6 +116,12 @@ async def quiz_watcher(client, message):
     if MSG_COUNTS[chat_id] >= TRIGGER_LIMIT:
         MSG_COUNTS[chat_id] = 0
         await send_quiz(chat_id)
+
+# --- TEST COMMAND (NEW) ---
+@app.on_message(filters.command("test") & filters.user(SUDO_LIST))
+async def test_quiz_cmd(client, message):
+    await message.reply_text("⚡ **Starting Quiz Test...**")
+    await send_quiz(message.chat.id)
 
 # --- AUTO END SYSTEM ---
 async def check_season_end():
@@ -141,14 +146,14 @@ async def end_season_logic(auto=False):
     if not top:
         return
         
-    txt = f"> 🏁 **{smcp('Monthly Season Ended')}!** 🏁\n> \n"
+    txt = f"<blockquote>🏁 <b>{smcp('Monthly Season Ended')}!</b> 🏁\n\n"
     for i, user in enumerate(top, 1):
-        txt += f"> 👑 {i}. {user['name']} — {user['points']} {smcp('pts')}\n"
+        txt += f"👑 {i}. {user['name']} — {user['points']} {smcp('pts')}\n"
     
-    txt += f"> \n> 👉 {smcp('Check Proof Channel for rewards!')}"
+    txt += f"\n👉 {smcp('Check Proof Channel for rewards!')}</blockquote>"
     
     btn = InlineKeyboardMarkup([[InlineKeyboardButton(text="🔎 CHECK PROOF", url=PROOF_LINK)]])
-    await app.send_message(MAIN_GROUP_ID, txt, reply_markup=btn)
+    await app.send_message(MAIN_GROUP_ID, txt, reply_markup=btn, parse_mode=enums.ParseMode.HTML)
     
     for user in top:
         try:
@@ -156,9 +161,9 @@ async def end_season_logic(auto=False):
         except:
             pass
     await reset_leaderboard()
-    await app.send_message(MAIN_GROUP_ID, f"> 🗑 **{smcp('Leaderboard Reset. New Season Starts Now!')}**")
+    await app.send_message(MAIN_GROUP_ID, f"<blockquote>🗑 <b>{smcp('Leaderboard Reset. New Season Starts Now!')}</b></blockquote>", parse_mode=enums.ParseMode.HTML)
 
-# --- QUIZ SENDER LOGIC (UPDATED WITH PHOTO) ---
+# --- QUIZ SENDER LOGIC (HTML + PHOTO) ---
 async def send_quiz(chat_id):
     if chat_id in QUIZ_STATE and QUIZ_STATE[chat_id]['active']:
         return
@@ -182,13 +187,12 @@ async def send_quiz(chat_id):
         btn_text = opt if len(opt) < 30 else opt[:27] + "..."
         keyboard.append([InlineKeyboardButton(text=btn_text, callback_data=f"qAns|{opt}")])
 
+    # HTML Formatting with Blockquote
     txt = (
-        f"> 🚨 **{smcp('Anime Quiz Event')}** 🚨\n"
-        f"> \n"
-        f"> ❓ **{smcp('Question')}:**\n> {question_data['q']}\n"
-        f"> \n"
-        f"> 💰 **{smcp('Prize')}:** ₁₀-₂₀ {smcp('Points')}\n"
-        f"> ⏳ **{smcp('Time')}:** ₃₀ {smcp('Seconds')}"
+        f"<blockquote>🚨 <b>{smcp('Anime Quiz Event')}</b> 🚨\n\n"
+        f"❓ <b>{smcp('Question')}:</b>\n{question_data['q']}\n\n"
+        f"💰 <b>{smcp('Prize')}:</b> ₁₀-₂₀ {smcp('Points')}\n"
+        f"⏳ <b>{smcp('Time')}:</b> ₃₀ {smcp('Seconds')}</blockquote>"
     )
 
     # SEND PHOTO WITH BLUR (SPOILER) EFFECT
@@ -196,7 +200,8 @@ async def send_quiz(chat_id):
         chat_id,
         photo=QUIZ_IMAGE_URL,
         caption=txt,
-        has_spoiler=True,  # This adds the Blur Effect
+        has_spoiler=True,
+        parse_mode=enums.ParseMode.HTML, # Explicitly use HTML
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -212,9 +217,9 @@ async def send_quiz(chat_id):
     if chat_id in QUIZ_STATE and QUIZ_STATE[chat_id]['active']:
         QUIZ_STATE[chat_id]['active'] = False
         try:
-            # Edit Caption only (Media can't be edited easily to remove spoiler in same call without re-upload)
             await msg.edit_caption(
-                caption=f"> 🛑 **{smcp('Time Up')}!** 🛑\n> \n> ✅ {smcp('Correct Answer')}: **{correct_ans}**",
+                caption=f"<blockquote>🛑 <b>{smcp('Time Up')}!</b> 🛑\n\n✅ {smcp('Correct Answer')}: <b>{correct_ans}</b></blockquote>",
+                parse_mode=enums.ParseMode.HTML,
                 reply_markup=None
             )
         except:
@@ -248,13 +253,13 @@ async def check_answer(client, query: CallbackQuery):
         await add_points(user_id, name, points)
         
         txt = (
-            f"> 🎉 **{smcp('Winner Announcement')}** 🎉\n> \n"
-            f"> 👤 **{smcp('User')}:** {query.from_user.mention}\n"
-            f"> ✅ **{smcp('Answer')}:** {selected}\n"
-            f"> 📈 **{smcp('Points Won')}:** +{points}"
+            f"<blockquote>🎉 <b>{smcp('Winner Announcement')}</b> 🎉\n\n"
+            f"👤 <b>{smcp('User')}:</b> {query.from_user.mention}\n"
+            f"✅ <b>{smcp('Answer')}:</b> {selected}\n"
+            f"📈 <b>{smcp('Points Won')}:</b> +{points}</blockquote>"
         )
         # Edit caption on win
-        await query.message.edit_caption(caption=txt, reply_markup=None)
+        await query.message.edit_caption(caption=txt, parse_mode=enums.ParseMode.HTML, reply_markup=None)
     else:
         await query.answer(smcp("Wrong Answer! You cannot answer again."), show_alert=True)
 
@@ -264,17 +269,17 @@ async def show_lb(client, message):
     data = await get_leaderboard()
     prizes = await get_prize()
     
-    txt = f"> 🏆 **{smcp('Monthly Leaderboard')}** 🏆\n> \n"
+    txt = f"<blockquote>🏆 <b>{smcp('Monthly Leaderboard')}</b> 🏆\n\n"
     if not data:
-        txt += f"> {smcp('No Data Found.')}"
+        txt += f"{smcp('No Data Found.')}"
     else:
         for i, user in enumerate(data, 1):
-            txt += f"> {i}. {user['name']} ➾ {user['points']} {smcp('pts')}\n"
+            txt += f"{i}. {user['name']} ➾ {user['points']} {smcp('pts')}\n"
     
-    txt += f"> \n> 🎁 **{smcp('Current Prizes')}:**\n> {prizes}"
+    txt += f"\n🎁 <b>{smcp('Current Prizes')}:</b>\n{prizes}</blockquote>"
     
     btn = InlineKeyboardMarkup([[InlineKeyboardButton(text="🔎 CHECK PROOF", url=PROOF_LINK)]])
-    await message.reply(txt, reply_markup=btn)
+    await message.reply(txt, reply_markup=btn, parse_mode=enums.ParseMode.HTML)
 
 # --- GROQ ADMIN COMMANDS ---
 @app.on_message(filters.command("gadd") & filters.user(SUDO_LIST))
@@ -283,11 +288,11 @@ async def add_groq_key(client, message):
         key = message.text.split(None, 1)[1].strip()
         success = await add_api_key(key)
         if success:
-            await message.reply(f"> ✅ **{smcp('API Key Added')}!**\n> AI Quiz System is now active.")
+            await message.reply(f"<blockquote>✅ <b>{smcp('API Key Added')}!</b>\nAI Quiz System is now active.</blockquote>", parse_mode=enums.ParseMode.HTML)
         else:
-            await message.reply(f"> ⚠️ **{smcp('Key Already Exists')}!**")
+            await message.reply(f"<blockquote>⚠️ <b>{smcp('Key Already Exists')}!</b></blockquote>", parse_mode=enums.ParseMode.HTML)
     except:
-        await message.reply("> Usage: `/gadd sk-xxxx...`")
+        await message.reply("Usage: `/gadd sk-xxxx...`")
 
 @app.on_message(filters.command("gremove") & filters.user(SUDO_LIST))
 async def remove_groq_key(client, message):
@@ -295,11 +300,11 @@ async def remove_groq_key(client, message):
         key = message.text.split(None, 1)[1].strip()
         success = await remove_api_key(key)
         if success:
-            await message.reply(f"> 🗑 **{smcp('API Key Removed')}!**")
+            await message.reply(f"<blockquote>🗑 <b>{smcp('API Key Removed')}!</b></blockquote>", parse_mode=enums.ParseMode.HTML)
         else:
-            await message.reply(f"> ⚠️ **{smcp('Key Not Found')}!**")
+            await message.reply(f"<blockquote>⚠️ <b>{smcp('Key Not Found')}!</b></blockquote>", parse_mode=enums.ParseMode.HTML)
     except:
-        await message.reply("> Usage: `/gremove sk-xxxx...`")
+        await message.reply("Usage: `/gremove sk-xxxx...`")
 
 # --- OTHER ADMIN COMMANDS ---
 @app.on_message(filters.command("addq") & filters.user(SUDO_LIST))
@@ -308,25 +313,25 @@ async def add_q_cmd(client, message):
         text = message.text.split(None, 1)[1]
         parts = [x.strip() for x in text.split("|")]
         if len(parts) != 6:
-            return await message.reply("> Usage: `/addq Quest | A | B | C | D | CorrectAnswer`")
+            return await message.reply("Usage: `/addq Quest | A | B | C | D | CorrectAnswer`")
         q, opts, ans = parts[0], parts[1:5], parts[5]
         if ans not in opts:
-            return await message.reply("> ⚠️ The correct answer is not in the options!")
+            return await message.reply("⚠️ The correct answer is not in the options!")
         await add_question(q, opts, ans)
-        await message.reply(f"> ✅ **{smcp('Question Added to DB')}!**")
+        await message.reply(f"<blockquote>✅ <b>{smcp('Question Added to DB')}!</b></blockquote>", parse_mode=enums.ParseMode.HTML)
     except:
-        await message.reply("> Error in format.")
+        await message.reply("Error in format.")
 
 @app.on_message(filters.command("setprize") & filters.user(SUDO_LIST))
 async def set_p_cmd(client, message):
     try:
         text = message.text.split(None, 1)[1]
         await set_prize(smcp(text))
-        await message.reply(f"> ✅ **{smcp('Prizes Updated')}!**")
+        await message.reply(f"<blockquote>✅ <b>{smcp('Prizes Updated')}!</b></blockquote>", parse_mode=enums.ParseMode.HTML)
     except:
         pass
 
 @app.on_message(filters.command("endseason") & filters.user(SUDO_LIST))
 async def manual_end_season(client, message):
     await end_season_logic(auto=False)
-        
+            
