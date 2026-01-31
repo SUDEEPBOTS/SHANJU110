@@ -7,7 +7,7 @@ def track_markup(_, videoid, user_id, channel, fplay):
     buttons = [
         [
             InlineKeyboardButton(text=" ᴜᴘᴅᴀᴛᴇ ", url="https://t.me/Kiwi_musicsupport"),
-            InlineKeyboardButton(text=" sᴜᴘᴘᴏʀᴛ ", url="https://t.me/Mixed_Vi3ez"),
+            InlineKeyboardButton(text=" sᴜᴘᴘᴏʀᴛ ", url="https://t.me/+JSJvtrVjf780YTQ9"),
         ],
         [
             InlineKeyboardButton("˹ᏦᎥᏇᎥ ᴛᴜɴᴇs˼♪", url="https://yukiapp-steel.vercel.app/"),
