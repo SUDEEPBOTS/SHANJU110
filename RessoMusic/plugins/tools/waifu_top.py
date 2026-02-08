@@ -14,7 +14,7 @@ def txt(text: str):
 
 waifudb = mongodb.waifu_users
 
-@app.on_message(filters.command(["top", "leaderboard"]))
+@app.on_message(filters.command(["wtop", "wleaderboard"]))
 async def leaderboard(_, message: Message):
     text = "🏆 **ᴛᴏᴘ 10 ᴡᴀɪғᴜ ᴄᴏʟʟᴇᴄᴛᴏʀs** 🏆\n\n"
     
