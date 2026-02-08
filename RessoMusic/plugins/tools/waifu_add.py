@@ -5,7 +5,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 from RessoMusic import app
 from RessoMusic.utils.waifu_db import add_waifu_to_db, check_waifu_in_collection, get_waifu_user
 from config import LOG_GROUP_ID 
-from RessoMusic.misc import SUDOERS  # <--- IMPORT ADDED
+from RessoMusic.misc import SUDOERS  # <--- IMPORT
 
 # --- SMALL CAPS FONT MAPPING ---
 SMALL_CAPS = {
@@ -25,7 +25,7 @@ RARITY_MAP = {
     "Legendary": {"chance": 5, "hp": (500, 800), "wpn": ["ᴅᴇᴍᴏɴ sᴡᴏʀᴅ 🗡️", "ᴅʀᴀɢᴏɴ 🔥"], "emoji": "🟡"}
 }
 
-# Temporary Storage for Current View (User ID -> Waifu Data)
+# Temporary Storage
 PENDING_WAIFUS = {}
 
 async def get_random_waifu_data():
@@ -34,7 +34,6 @@ async def get_random_waifu_data():
             data = await resp.json()
             result = data["results"][0]
             
-            # Calculate Rarity
             types = list(RARITY_MAP.keys())
             weights = [RARITY_MAP[t]["chance"] for t in types]
             rarity = random.choices(types, weights=weights, k=1)[0]
@@ -49,13 +48,12 @@ async def get_random_waifu_data():
                 "weapon": random.choice(r_data["wpn"])
             }
 
-# --- YAHAN CHANGE KIYA HAI (SUDOERS ONLY) ---
-@app.on_message(filters.command("addwaifu") & filters.user(SUDOERS))
+# --- ERROR FIX: list(SUDOERS) ---
+@app.on_message(filters.command("addwaifu") & filters.user(list(SUDOERS)))
 async def waifu_gen(_, message: Message):
     user_id = message.from_user.id
     waifu = await get_random_waifu_data()
     
-    # Store in memory for button action
     PENDING_WAIFUS[user_id] = waifu
     
     caption = (
@@ -89,7 +87,6 @@ async def waifu_callbacks(client, query: CallbackQuery):
         return
 
     if data == "w_next":
-        # Only allow the user who started the command (which is a Sudoer)
         if user_id not in PENDING_WAIFUS:
             return await query.answer("⚠️ This is not your session!", show_alert=True)
 
@@ -126,13 +123,11 @@ async def waifu_callbacks(client, query: CallbackQuery):
             
         waifu = PENDING_WAIFUS[user_id]
         
-        # Check Duplicate
         is_exist = await check_waifu_in_collection(user_id, waifu['name'])
         if is_exist:
             await query.answer("⚠️ ʏᴏᴜ ᴀʟʀᴇᴀᴅʏ ʜᴀᴠᴇ ᴛʜɪs ᴡᴀɪғᴜ!", show_alert=True)
             return
 
-        # Save to DB
         await add_waifu_to_db(user_id, waifu)
         del PENDING_WAIFUS[user_id]
         
@@ -141,7 +136,6 @@ async def waifu_callbacks(client, query: CallbackQuery):
             reply_markup=None
         )
         
-        # Logger Channel Message
         try:
             log_text = (
                 f"**#ɴᴇᴡ_ᴡᴀɪғᴜ_ᴀᴅᴅᴇᴅ 👰**\n\n"
