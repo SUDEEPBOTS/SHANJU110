@@ -16,6 +16,7 @@ BOT_TOKEN = getenv("BOT_TOKEN")
 
 BOT_USERNAME = "@ANIYA_MUSIC_BOT"
 
+LOG_GROUP_ID = -1003639584506
 # ... (Tere purane configs jaise API_ID, BOT_TOKEN yahan honge) ...
 
 # 🔥 NEW: MUSIC API CONFIGURATION (Added this for youtube.py)
@@ -130,6 +131,7 @@ if SUPPORT_GROUP:
         raise SystemExit(
             "[ERROR] - Your SUPPORT_GROUP url is wrong. Please ensure that it starts with https://"
         )
+
 
 
 
