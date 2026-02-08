@@ -1,10 +1,11 @@
 import random
 import aiohttp
 from pyrogram import filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, InputMediaPhoto
 from RessoMusic import app
 from RessoMusic.utils.waifu_db import add_waifu_to_db, check_waifu_in_collection, get_waifu_user
-from config import LOG_GROUP_ID # Ensure LOG_GROUP_ID config.py mein ho
+from config import LOG_GROUP_ID 
+from RessoMusic.misc import SUDOERS  # <--- IMPORT ADDED
 
 # --- SMALL CAPS FONT MAPPING ---
 SMALL_CAPS = {
@@ -40,7 +41,7 @@ async def get_random_waifu_data():
             r_data = RARITY_MAP[rarity]
 
             return {
-                "name": result["artist_name"], # Using artist name or name if available
+                "name": result["artist_name"], 
                 "img": result["url"],
                 "rarity": rarity,
                 "emoji": r_data["emoji"],
@@ -48,7 +49,8 @@ async def get_random_waifu_data():
                 "weapon": random.choice(r_data["wpn"])
             }
 
-@app.on_message(filters.command("addwaifu"))
+# --- YAHAN CHANGE KIYA HAI (SUDOERS ONLY) ---
+@app.on_message(filters.command("addwaifu") & filters.user(SUDOERS))
 async def waifu_gen(_, message: Message):
     user_id = message.from_user.id
     waifu = await get_random_waifu_data()
@@ -87,6 +89,10 @@ async def waifu_callbacks(client, query: CallbackQuery):
         return
 
     if data == "w_next":
+        # Only allow the user who started the command (which is a Sudoer)
+        if user_id not in PENDING_WAIFUS:
+            return await query.answer("⚠️ This is not your session!", show_alert=True)
+
         waifu = await get_random_waifu_data()
         PENDING_WAIFUS[user_id] = waifu
         
@@ -107,8 +113,6 @@ async def waifu_callbacks(client, query: CallbackQuery):
             [InlineKeyboardButton(text="ᴄᴀɴᴄᴇʟ ❌", callback_data="w_close")]
         ])
         
-        # Edit media directly for smooth transition
-        from pyrogram.types import InputMediaPhoto
         await query.message.edit_media(
             media=InputMediaPhoto(waifu['img'], caption=caption),
             reply_markup=buttons
@@ -146,8 +150,7 @@ async def waifu_callbacks(client, query: CallbackQuery):
                 f"**🔮 ʀᴀʀɪᴛʏ:** {txt(waifu['rarity'])}\n"
                 f"**❤️ ʜᴘ:** {waifu['hp']}"
             )
-            # LOG_GROUP_ID config.py se aayega
             await client.send_photo(LOG_GROUP_ID, photo=waifu['img'], caption=log_text)
         except Exception:
-            pass # Agar logger set nahi hai to ignore karega
-      
+            pass
+            
